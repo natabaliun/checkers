@@ -1,15 +1,25 @@
-import React, { Suspense } from 'react';
+// Файл: frontend/src/index.tsx
+
+import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './app/App';
-import './shared/config/i18n/i18n'; // Путь к файлу i18n
+import { Provider } from 'react-redux';
+import { store } from './app/store';
+import { BrowserRouter } from 'react-router-dom';
+import { Suspense } from 'react';
+import './shared/config/i18n/i18n';
 
 const root = ReactDOM.createRoot(
     document.getElementById('root') as HTMLElement
 );
 root.render(
     <React.StrictMode>
-        <Suspense fallback="loading...">
-            <App />
-        </Suspense>
+        <Provider store={store}>
+            <BrowserRouter>
+                <Suspense fallback="loading...">
+                    <App />
+                </Suspense>
+            </BrowserRouter>
+        </Provider>
     </React.StrictMode>
 );
