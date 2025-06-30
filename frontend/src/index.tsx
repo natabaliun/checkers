@@ -8,6 +8,7 @@ import { store } from './app/store';
 import { BrowserRouter } from 'react-router-dom';
 import { Suspense } from 'react';
 import './shared/config/i18n/i18n';
+import './app/styles/index.scss';
 
 const root = ReactDOM.createRoot(
     document.getElementById('root') as HTMLElement

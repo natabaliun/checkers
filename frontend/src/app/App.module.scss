@@ -1,0 +1,42 @@
+/* Файл: frontend/src/app/App.module.scss */
+
+.header {
+  background-color: var(--card-bg-color);
+  padding: 1rem 2rem;
+  box-shadow: var(--shadow);
+  margin: 0 -20px; /* Чтобы растянуть на всю ширину .App контейнера */
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.navLink {
+  color: var(--secondary-color);
+  font-weight: 500;
+  transition: color 0.2s;
+
+  &:hover {
+    color: var(--primary-color);
+  }
+}
+
+.navButton {
+  background: none;
+  border: none;
+  color: var(--secondary-color);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s;
+
+  &:hover {
+    color: var(--primary-color);
+  }
+}

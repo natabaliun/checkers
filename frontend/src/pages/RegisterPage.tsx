@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../shared/api/auth';
+import styles from '../shared/ui/Form.module.scss'; // Используем общие стили для форм
 
 const RegisterPage = () => {
     const [email, setEmail] = useState('');
@@ -23,16 +24,20 @@ const RegisterPage = () => {
     };
 
     return (
-        <div>
-            <h2>Register</h2>
-            <form onSubmit={handleSubmit}>
-                <div><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required /></div>
-                <div><input type="text" value={nickname} onChange={e => setNickname(e.target.value)} placeholder="Nickname" required /></div>
-                <div><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required /></div>
-                <button type="submit">Register</button>
-            </form>
-            {error && <p style={{color: 'red'}}>{error}</p>}
-        </div>
+        <form className={styles.form} onSubmit={handleSubmit}>
+            <h2 className={styles.title}>Register</h2>
+            <div className={styles.formGroup}>
+                <input className={styles.input} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required />
+            </div>
+            <div className={styles.formGroup}>
+                <input className={styles.input} type="text" value={nickname} onChange={e => setNickname(e.target.value)} placeholder="Nickname" required />
+            </div>
+            <div className={styles.formGroup}>
+                <input className={styles.input} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required />
+            </div>
+            {error && <p className={styles.error}>{error}</p>}
+            <button className={styles.button} type="submit">Register</button>
+        </form>
     );
 };
 

@@ -9,6 +9,7 @@ import HomePage from '../pages/HomePage';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 import ProfilePage from '../pages/ProfilePage';
+import styles from './App.module.scss'; // Импортируем стили
 
 function App() {
     const dispatch = useAppDispatch();
@@ -16,7 +17,6 @@ function App() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        // Проверяем аутентификацию только один раз при загрузке
         if (localStorage.getItem('token')) {
             dispatch(checkAuth());
         }
@@ -29,20 +29,20 @@ function App() {
 
     return (
         <div className="App">
-            <header>
-                <nav style={{ padding: '1rem', background: '#f0f0f0', marginBottom: '1rem' }}>
-                    <Link to="/">Home</Link> |{' '}
+            <header className={styles.header}>
+                <nav className={styles.nav}>
+                    <Link to="/" className={styles.navLink}>Home</Link>
+                    <div style={{ flexGrow: 1 }}></div> {/* Распорка для расталкивания элементов */}
                     {isAuthenticated ? (
                         <>
-                            <Link to="/profile">{user?.nickname}</Link> |{' '}
-                            <button onClick={handleLogout}>Logout</button>
+                            <Link to="/profile" className={styles.navLink}>{user?.nickname}</Link>
+                            <button onClick={handleLogout} className={styles.navButton}>Logout</button>
                         </>
                     ) : (
-                        // Не показываем ссылки, пока идет проверка
                         status !== 'loading' && (
                             <>
-                                <Link to="/login">Login</Link> |{' '}
-                                <Link to="/register">Register</Link>
+                                <Link to="/login" className={styles.navLink}>Login</Link>
+                                <Link to="/register" className={styles.navLink}>Register</Link>
                             </>
                         )
                     )}

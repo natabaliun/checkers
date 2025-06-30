@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../shared/hooks/redux';
 import { loginSuccess } from '../entities/user/userSlice';
 import { authApi } from '../shared/api/auth';
+import styles from '../shared/ui/Form.module.scss';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -26,15 +27,17 @@ const LoginPage = () => {
     };
 
     return (
-        <div>
-            <h2>Login</h2>
-            <form onSubmit={handleSubmit}>
-                <div><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required /></div>
-                <div><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required /></div>
-                <button type="submit">Login</button>
-            </form>
-            {error && <p style={{color: 'red'}}>{error}</p>}
-        </div>
+        <form className={styles.form} onSubmit={handleSubmit}>
+            <h2 className={styles.title}>Login</h2>
+            <div className={styles.formGroup}>
+                <input className={styles.input} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required />
+            </div>
+            <div className={styles.formGroup}>
+                <input className={styles.input} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required />
+            </div>
+            {error && <p className={styles.error}>{error}</p>}
+            <button className={styles.button} type="submit">Login</button>
+        </form>
     );
 };
 
