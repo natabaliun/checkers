@@ -1,0 +1,96 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum GameStateFSM {
+  WAITING_FOR_OPPONENT
+  WHITE_TURN
+  BLACK_TURN
+  WHITE_MUST_CAPTURE
+  BLACK_MUST_CAPTURE
+  GAME_OVER
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  nickname     String        @unique
+  passwordHash String
+  role         Role          @default(USER)
+  createdAt    DateTime      @default(now())
+  profile      UserProfile?
+  messages     Message[]
+  activeGameId String?       @unique
+  activeGame   ActiveGame?   @relation(fields: [activeGameId], references: [id])
+}
+
+model UserProfile {
+  id        String   @id @default(cuid())
+  firstName String?
+  lastName  String?
+  avatarUrl String?
+  country   String?
+  city      String?
+  rating    Int      @default(1200)
+  wins      Int      @default(0)
+  losses    Int      @default(0)
+  draws     Int      @default(0)
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ActiveGame {
+  id            String       @id @default(cuid())
+  fen           String
+  playerWhiteId String
+  playerBlackId String
+  state         GameStateFSM @default(WAITING_FOR_OPPONENT)
+  createdAt     DateTime     @default(now())
+  players       User[]
+}
+
+enum GameResult {
+  WHITE_WIN
+  BLACK_WIN
+  DRAW
+}
+
+model CompletedGame {
+  id            String     @id @default(cuid())
+  playerWhiteId String
+  playerBlackId String
+  result        GameResult
+  moves         String
+  startedAt     DateTime
+  endedAt       DateTime   @default(now())
+}
+
+model Chat {
+  id             String    @id @default(cuid())
+  type           String
+  participantIds String?
+  messages       Message[]
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+}
