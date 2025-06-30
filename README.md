@@ -1,0 +1,2 @@
+# checkers
+Learn repository 'Checkers'
