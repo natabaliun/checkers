@@ -3,6 +3,7 @@
 import { Board } from '../../domain/game/Board';
 import { GameRules } from '../../domain/game/GameRules';
 import { PlayerColor, Position, Move } from '../../domain/game/types';
+import { Bot } from './Bot'; // Импортируем бота
 
 export type GameStatus = 'WAITING' | 'PLAYING' | 'FINISHED';
 export type GameResult = { winner: PlayerColor | 'DRAW', reason: 'NO_MOVES' | 'NO_PIECES' | 'RESIGNATION' };
@@ -20,6 +21,9 @@ export class GameInstance {
     public result: GameResult | null = null;
     public startedAt: Date = new Date();
 
+    public isPve: boolean = false; // Флаг игры против компьютера
+    public bot: Bot | null = null;   // Инстанс бота
+
     constructor(public id: string, creatorId: string) {
         this.board = new Board();
         this.rules = new GameRules(this.board);
@@ -36,7 +40,7 @@ export class GameInstance {
             this.players.BLACK = playerId;
             this.playerColors[playerId] = 'BLACK';
             this.status = 'PLAYING';
-            this.startedAt = new Date(); // Устанавливаем точное время начала игры
+            this.startedAt = new Date();
             return 'BLACK';
         }
 
@@ -46,10 +50,23 @@ export class GameInstance {
         return 'SPECTATOR';
     }
 
-    /**
-     * Основной метод для выполнения хода.
-     * Возвращает true, если игра завершилась после этого хода.
-     */
+    public addBot(): 'BLACK' | null {
+        if (this.status !== 'WAITING' || this.players.BLACK) {
+            return null;
+        }
+
+        const botId = 'bot-player';
+        this.bot = new Bot('BLACK');
+        this.isPve = true;
+
+        this.players.BLACK = botId;
+        this.playerColors[botId] = 'BLACK';
+        this.status = 'PLAYING';
+        this.startedAt = new Date();
+
+        return 'BLACK';
+    }
+
     public makeMove(playerId: string, move: Move): boolean {
         const playerColor = this.playerColors[playerId];
         if (this.turn !== playerColor) {
@@ -72,7 +89,7 @@ export class GameInstance {
         if (validationResult.capture && pieceAfterMove) {
             const nextCaptures = this.rules.getCapturesForPiece(move.to);
             if (nextCaptures.length > 0) {
-                return false; // Игра не закончена, ход не передается
+                return false;
             }
         }
 
@@ -93,16 +110,13 @@ export class GameInstance {
             return true;
         }
 
-        return false; // Игра продолжается
+        return false;
     }
 
-    /**
-     * Метод для досрочного завершения игры (сдача).
-     */
     public resign(playerId: string): boolean {
         const playerColor = this.playerColors[playerId];
         if (!playerColor || this.status !== 'PLAYING') {
-            return false; // Нельзя сдаться, если вы не игрок или игра не идет
+            return false;
         }
 
         this.status = 'FINISHED';
@@ -123,7 +137,7 @@ export class GameInstance {
             status: this.status,
             players: this.players,
             playerColor: getPlayerColor(userId),
-            result: this.result, // Добавляем результат в состояние
+            result: this.result,
         };
     }
 }

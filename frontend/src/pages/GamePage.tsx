@@ -16,84 +16,78 @@ export const GamePage = () => {
     const user = useAppSelector(state => state.user.user);
     const gameState = useAppSelector(state => state.game);
     const [gameOverMessage, setGameOverMessage] = useState('');
+    const [showPveButton, setShowPveButton] = useState(false);
 
-    // Этот useEffect отвечает за подписку на события и очистку при выходе.
+    // Эффект для подписки на события
     useEffect(() => {
-        if (!user) return; // Ждем, пока появится пользователь
-
-        // Подключаемся, если еще не подключены
+        if (!user) return;
         socketService.connect(user.id);
-
         const gameSocket = socketService.gameSocket;
 
-        const handleStateUpdate = (data: any) => {
-            console.log("HANDLER: Received game state update:", data);
-            dispatch(setGameState(data));
-        };
-
+        const handleStateUpdate = (data: any) => dispatch(setGameState(data));
         const handleGameEnded = (data: any) => {
             if (!data.result) return;
             let message = 'Game Over. ';
-            if (data.result.winner === 'DRAW') {
-                message += 'It\'s a draw!';
-            } else {
+            if (data.result.winner === 'DRAW') message += 'It\'s a draw!';
+            else {
                 const winnerColor = data.result.winner;
                 message += `${winnerColor} wins! Reason: ${data.result.reason}.`;
-                if (winnerColor === gameState.playerColor) {
-                    message += ' (You won!)';
-                } else {
-                    message += ' (You lost)';
-                }
+                if (winnerColor === gameState.playerColor) message += ' (You won!)';
+                else message += ' (You lost)';
             }
             setGameOverMessage(message);
         };
 
-        // Подписываемся
         gameSocket?.on('game:state_update', handleStateUpdate);
         gameSocket?.on('game:reconnect', handleStateUpdate);
         gameSocket?.on('game:ended', handleGameEnded);
 
-        // Функция очистки при размонтировании
         return () => {
             gameSocket?.off('game:state_update', handleStateUpdate);
             gameSocket?.off('game:reconnect', handleStateUpdate);
             gameSocket?.off('game:ended', handleGameEnded);
         };
-    }, [user, dispatch, gameState.playerColor]); // Зависимость от playerColor нужна для корректного сообщения о победе/поражении
+    }, [user, dispatch, gameState.playerColor]);
 
-    // Этот useEffect отвечает только за вход в игру
+    // Эффект для входа в игру
     useEffect(() => {
         if (!gameId || !user) {
             navigate('/');
             return;
         }
 
-        const gameSocket = socketService.gameSocket;
+        const join = () => socketService.joinGame(gameId, user.id, (data) => {
+            if (data.error) {
+                alert(data.error);
+                navigate('/');
+            }
+        });
 
-        const join = () => {
-            socketService.joinGame(gameId, user.id, (data) => {
-                // Если при присоединении произошла ошибка, возвращаемся в лобби
-                if (data.error) {
-                    alert(data.error);
-                    navigate('/');
-                }
-            });
-        };
+        if (socketService.gameSocket?.connected) join();
+        else socketService.gameSocket?.once('connect', join);
 
-        // Если сокет уже подключен, сразу входим в игру
-        if (gameSocket?.connected) {
-            join();
-        } else {
-            // Если сокет еще не подключен, ждем события 'connect' и потом входим
-            gameSocket?.once('connect', join);
-        }
-
-        // При выходе со страницы сбрасываем состояние игры
         return () => {
             dispatch(resetGameState());
         }
     }, [gameId, user, dispatch, navigate]);
 
+    // Эффект для показа кнопки "Играть с ботом"
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (gameState.status === 'WAITING') {
+            timer = setTimeout(() => setShowPveButton(true), 10000);
+        } else {
+            setShowPveButton(false);
+        }
+        return () => clearTimeout(timer);
+    }, [gameState.status]);
+
+    const handlePlayWithBot = () => {
+        if (user && gameId) {
+            socketService.gameSocket?.emit('game:start_pve', { gameId, userId: user.id });
+            setShowPveButton(false);
+        }
+    };
 
     if (gameState.id !== gameId) {
         return <div>Loading game...</div>;
@@ -123,7 +117,16 @@ export const GamePage = () => {
             </div>
             {gameState.status === 'PLAYING' ?
                 <Board /> :
-                (gameState.status === 'WAITING' && <h2>Waiting for opponent to join...</h2>)
+                (gameState.status === 'WAITING' &&
+                    <div>
+                        <h2>Waiting for opponent to join...</h2>
+                        {showPveButton && (
+                            <button onClick={handlePlayWithBot} style={{marginTop: '20px'}}>
+                                Play with Bot
+                            </button>
+                        )}
+                    </div>
+                )
             }
             {gameState.status === 'PLAYING' && (
                 <button onClick={handleResign} style={{ marginTop: '20px' }}>

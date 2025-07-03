@@ -53,6 +53,7 @@ class GameManager {
     public async getLobbyGames() {
         const playerIds = new Set<string>();
         this.games.forEach(game => {
+            if (game.isPve) return; // Не показываем PvE игры в лобби
             if (game.players.WHITE) playerIds.add(game.players.WHITE);
             if (game.players.BLACK) playerIds.add(game.players.BLACK);
         });
@@ -67,45 +68,54 @@ class GameManager {
         const userIdToNickname = new Map<string, string>();
         users.forEach(user => userIdToNickname.set(user.id, user.nickname));
 
-        return Array.from(this.games.values()).map(game => ({
-            id: game.id,
-            status: game.status,
-            players: {
-                WHITE: userIdToNickname.get(game.players.WHITE || ''),
-                BLACK: userIdToNickname.get(game.players.BLACK || ''),
-            },
-        }));
+        return Array.from(this.games.values())
+            .filter(game => !game.isPve) // Дополнительная фильтрация
+            .map(game => ({
+                id: game.id,
+                status: game.status,
+                players: {
+                    WHITE: userIdToNickname.get(game.players.WHITE || ''),
+                    BLACK: userIdToNickname.get(game.players.BLACK || ''),
+                },
+            }));
+    }
+
+    public async assignBotToGame(gameId: string, botId: string) {
+        await prisma.activeGame.update({
+            where: { id: gameId },
+            data: { playerBlackId: botId }
+        });
     }
 
     public async finishGame(gameId: string) {
         const game = this.games.get(gameId);
         if (!game) return;
 
-        // Сохраняем игру в историю, только если она была начата и есть результат
         if (game.status === 'FINISHED' && game.result && game.players.WHITE && game.players.BLACK) {
 
             let gameResult: 'WHITE_WIN' | 'BLACK_WIN' | 'DRAW' = 'DRAW';
             if (game.result.winner === 'WHITE') gameResult = 'WHITE_WIN';
             if (game.result.winner === 'BLACK') gameResult = 'BLACK_WIN';
 
-            await prisma.completedGame.create({
-                data: {
-                    playerWhiteId: game.players.WHITE,
-                    playerBlackId: game.players.BLACK,
-                    result: gameResult,
-                    moves: JSON.stringify(game.moveHistory), // Сохраняем ходы
-                    startedAt: game.startedAt,
-                }
-            });
-            // TODO: Обновить рейтинг Эло игроков в их UserProfile
+            // Не сохраняем в историю игры с ботом (можно изменить по желанию)
+            if (!game.isPve) {
+                await prisma.completedGame.create({
+                    data: {
+                        playerWhiteId: game.players.WHITE,
+                        playerBlackId: game.players.BLACK,
+                        result: gameResult,
+                        moves: JSON.stringify(game.moveHistory),
+                        startedAt: game.startedAt,
+                    }
+                });
+            }
         }
 
-        // Очищаем activeGameId у игроков
         if (game.players.WHITE) {
             this.userGameMap.delete(game.players.WHITE);
             await prisma.user.update({ where: { id: game.players.WHITE }, data: { activeGameId: null }});
         }
-        if (game.players.BLACK) {
+        if (game.players.BLACK && !game.isPve) { // Не пытаемся обновить профиль бота
             this.userGameMap.delete(game.players.BLACK);
             await prisma.user.update({ where: { id: game.players.BLACK }, data: { activeGameId: null }});
         }
