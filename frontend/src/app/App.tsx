@@ -5,14 +5,15 @@ import { Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../shared/hooks/redux';
 import { checkAuth, logout } from '../entities/user/userSlice';
 import { ProtectedRoute } from './providers/ProtectedRoute';
-import HomePage from '../pages/HomePage';
+import { LobbyPage } from '../pages/LobbyPage';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 import ProfilePage from '../pages/ProfilePage';
 import { GamePage } from '../pages/GamePage';
-import { LobbyPage } from '../pages/LobbyPage';
+import styles from './App.module.scss';
+import commonStyles from '../shared/ui/Common.module.scss';
 import { ReturnToGame } from '../features/auth/ReturnToGame';
-import styles from './App.module.scss'; // Импортируем стили
+
 
 function App() {
     const dispatch = useAppDispatch();
@@ -34,20 +35,19 @@ function App() {
         <div className="App">
             <header className={styles.header}>
                 <nav className={styles.nav}>
-                    <Link to="/" className={styles.navLink}>Home</Link>
-                    <div style={{ flexGrow: 1 }}></div> {/* Распорка для расталкивания элементов */}
+                    <Link to="/" className={styles.logo}>Русские Шашки</Link>
+                    <div className={styles.spacer}></div>
                     {isAuthenticated ? (
                         <>
                             <Link to="/profile" className={styles.navLink}>{user?.nickname}</Link>
-                            <Link to="/game" className={styles.navLink}>Game</Link>
-                            <button onClick={handleLogout} className={styles.navButton}>Logout</button>
+                            <button onClick={handleLogout} className={styles.navButton}>Выйти</button>
                         </>
                     ) : (
                         status !== 'loading' && (
-                            <>
-                                <Link to="/login" className={styles.navLink}>Login</Link>
-                                <Link to="/register" className={styles.navLink}>Register</Link>
-                            </>
+                            <div className={styles.authLinks}>
+                                <Link to="/login" className={styles.navLink}>Войти</Link>
+                                <Link to="/register" className={`${commonStyles.button} ${styles.registerBtn}`}>Регистрация</Link>
+                            </div>
                         )
                     )}
                 </nav>

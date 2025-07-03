@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../shared/hooks/redux';
 import { socketService } from '../shared/api/socket';
 import { setGameState } from '../entities/game/gameSlice';
+import commonStyles from '../shared/ui/Common.module.scss';
+import styles from './LobbyPage.module.scss';
 
 export const LobbyPage = () => {
     const { user } = useAppSelector(state => state.user);
@@ -67,87 +69,87 @@ export const LobbyPage = () => {
         navigate(`/game/${gameId}`);
     };
 
-    const buttonStyle: React.CSSProperties = {
-        padding: '8px 12px',
-        fontSize: '14px',
-        cursor: 'pointer',
-        margin: '5px',
-        border: '1px solid #ccc',
-        borderRadius: '4px'
-    };
-    const disabledButtonStyle: React.CSSProperties = {
-        ...buttonStyle,
-        cursor: 'not-allowed',
-        backgroundColor: '#e0e0e0',
-        color: '#999'
-    };
-
     return (
-        <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-            <h2>Lobby (Connection: {isConnected ? 'Online' : 'Connecting...'})</h2>
+        <div className={styles.lobbyPage}>
+            <h1 className={styles.title}>Игровое Лобби</h1>
+            <p className={styles.subtitle}>
+                Состояние подключения:
+                <span className={isConnected ? styles.online : styles.offline}>
+                    {isConnected ? ' Онлайн' : ' Подключение...'}
+                </span>
+            </p>
 
-            <div style={{ marginBottom: '20px', padding: '15px', border: '1px solid #eee', borderRadius: '8px' }}>
-                <h4>Play vs Bot</h4>
-                <button
-                    onClick={() => handleCreatePveGame('WHITE')}
-                    style={isConnected ? buttonStyle : disabledButtonStyle}
-                    disabled={!isConnected}
-                >
-                    as White
-                </button>
-                <button
-                    onClick={() => handleCreatePveGame('BLACK')}
-                    style={isConnected ? buttonStyle : disabledButtonStyle}
-                    disabled={!isConnected}
-                >
-                    as Black
-                </button>
+            <div className={`${commonStyles.card} ${styles.actionsCard}`}>
+                <div className={styles.actionSection}>
+                    <h4>Играть против компьютера</h4>
+                    <div className={styles.buttonGroup}>
+                        <button
+                            onClick={() => handleCreatePveGame('WHITE')}
+                            className={commonStyles.button}
+                            disabled={!isConnected}
+                        >
+                            Играть за белых
+                        </button>
+                        <button
+                            onClick={() => handleCreatePveGame('BLACK')}
+                            className={`${commonStyles.button} ${commonStyles.buttonSecondary}`}
+                            disabled={!isConnected}
+                        >
+                            Играть за черных
+                        </button>
+                    </div>
+                </div>
+                <div className={styles.actionSection}>
+                    <h4>Играть против человека</h4>
+                    <button
+                        onClick={handleCreateGame}
+                        className={commonStyles.button}
+                        disabled={!isConnected}
+                    >
+                        {isConnected ? 'Создать PvP игру' : 'Подключение...'}
+                    </button>
+                </div>
             </div>
 
-            <div style={{ padding: '15px', border: '1px solid #eee', borderRadius: '8px' }}>
-                <h4>Play vs Player</h4>
-                <button
-                    onClick={handleCreateGame}
-                    style={isConnected ? buttonStyle : disabledButtonStyle}
-                    disabled={!isConnected}
-                >
-                    {isConnected ? 'Create New PvP Game' : 'Connecting...'}
-                </button>
+            <div className={styles.gameLists}>
+                <div className={commonStyles.card}>
+                    <h3>Доступные игры</h3>
+                    {games.filter(g => g.status === 'WAITING').length > 0 ? (
+                        <ul className={styles.gameList}>
+                            {games.filter(g => g.status === 'WAITING').map(game => (
+                                <li key={game.id} className={styles.gameItem}>
+                                    <span>Игра от <strong>{game.players.WHITE || '...'}</strong></span>
+                                    <button
+                                        onClick={() => handleJoinGame(game.id)}
+                                        className={commonStyles.button}
+                                        disabled={!isConnected}
+                                    >
+                                        Присоединиться
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : <p className={styles.noGames}>Нет доступных игр.</p>}
+                </div>
 
-                <h5>Available Games to Join:</h5>
-                {games.filter(g => g.status === 'WAITING').length > 0 ? (
-                    <ul>
-                        {games.filter(g => g.status === 'WAITING').map(game => (
-                            <li key={game.id} style={{ marginBottom: '10px', display: 'flex', alignItems: 'center' }}>
-                                <span>Game by <strong>{game.players.WHITE || '...'}</strong></span>
-                                <button
-                                    onClick={() => handleJoinGame(game.id)}
-                                    style={isConnected ? buttonStyle : disabledButtonStyle}
-                                    disabled={!isConnected}
-                                >
-                                    Join
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                ) : <p>No available games to join.</p>}
-
-                <h5>Ongoing Games (Spectate):</h5>
-                {games.filter(g => g.status === 'PLAYING').length > 0 ? (
-                    <ul>
-                        {games.filter(g => g.status === 'PLAYING').map(game => (
-                            <li key={game.id} style={{ marginBottom: '10px', display: 'flex', alignItems: 'center' }}>
-                                <span><strong>{game.players.WHITE || '?'}</strong> vs <strong>{game.players.BLACK || '?'}</strong></span>
-                                <button
-                                    onClick={() => navigate(`/game/${game.id}`)}
-                                    style={buttonStyle}
-                                >
-                                    Spectate
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                ) : <p>No ongoing games to watch.</p>}
+                <div className={commonStyles.card}>
+                    <h3>Идущие партии (Наблюдать)</h3>
+                    {games.filter(g => g.status === 'PLAYING').length > 0 ? (
+                        <ul className={styles.gameList}>
+                            {games.filter(g => g.status === 'PLAYING').map(game => (
+                                <li key={game.id} className={styles.gameItem}>
+                                    <span><strong>{game.players.WHITE || '?'}</strong> vs <strong>{game.players.BLACK || '?'}</strong></span>
+                                    <button
+                                        onClick={() => navigate(`/game/${game.id}`)}
+                                        className={`${commonStyles.button} ${commonStyles.buttonSecondary}`}
+                                    >
+                                        Смотреть
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : <p className={styles.noGames}>Нет идущих партий.</p>}
+                </div>
             </div>
         </div>
     );

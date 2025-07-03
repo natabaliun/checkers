@@ -1,42 +1,75 @@
 /* Файл: frontend/src/app/App.module.scss */
 
 .header {
-  background-color: var(--card-bg-color);
-  padding: 1rem 2rem;
-  box-shadow: var(--shadow);
-  margin: 0 -20px; /* Чтобы растянуть на всю ширину .App контейнера */
+  background-color: var(--surface-color);
+  padding: 0 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
 .nav {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 20px;
+  height: 70px;
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.spacer {
+  flex-grow: 1;
+}
+
+.authLinks {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .navLink {
-  color: var(--secondary-color);
+  color: var(--text-color-secondary);
   font-weight: 500;
-  transition: color 0.2s;
+  transition: color 0.2s ease;
+  margin: 0 1rem;
+  text-decoration: none;
+  padding: 5px 10px;
+  border-radius: 6px;
 
   &:hover {
     color: var(--primary-color);
+    background-color: var(--bg-color);
   }
 }
 
 .navButton {
   background: none;
   border: none;
-  color: var(--secondary-color);
+  color: var(--text-color-secondary);
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
-  padding: 0;
-  transition: color 0.2s;
+  padding: 5px 10px;
+  transition: color 0.2s ease, background-color 0.2s ease;
+  margin-left: 1rem;
+  font-family: inherit;
+  border-radius: 6px;
 
   &:hover {
     color: var(--primary-color);
+    background-color: var(--bg-color);
   }
+}
+
+.registerBtn {
+  padding: 8px 16px !important;
+  font-size: 0.9rem !important;
+  margin-left: 0.5rem;
 }

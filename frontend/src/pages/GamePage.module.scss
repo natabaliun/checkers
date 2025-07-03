@@ -4,18 +4,54 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 1.5rem;
+  padding-top: 1rem;
+  position: relative;
+}
+
+.header {
+  display: flex;
   gap: 1rem;
-  padding: 2rem;
-  position: relative; /* Для позиционирования попапа */
+  width: 100%;
+  max-width: 600px;
+  justify-content: space-around;
 }
 
 .status {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: 500;
-  padding: 0.5rem 1rem;
+  padding: 0.75rem 1.5rem;
   border-radius: 8px;
-  background-color: var(--card-bg-color);
+  background-color: var(--surface-color);
   box-shadow: var(--shadow);
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.myTurn {
+  background-color: var(--primary-color);
+  color: var(--light-text-color);
+  transform: scale(1.05);
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 600px;
+
+  p {
+    color: var(--text-color-secondary);
+    font-weight: 500;
+  }
+}
+
+.resignButton {
+  background-color: var(--error-color) !important;
+  &:hover {
+    background-color: darken($color: #d32f2f, $amount: 10%) !important;
+  }
 }
 
 .gameOverPopup {
@@ -23,30 +59,17 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background-color: rgba(255, 255, 255, 0.95);
-  padding: 2rem 3rem;
-  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.98);
+  padding: 2.5rem 3.5rem;
+  border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   text-align: center;
   z-index: 100;
+  border-top: 5px solid var(--primary-color);
 
   h2 {
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
     color: var(--secondary-color);
-  }
-
-  button {
-    padding: 0.8rem 1.5rem;
-    background-color: var(--primary-color);
-    color: var(--light-text-color);
-    border: none;
-    border-radius: 4px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background-color 0.2s;
-
-    &:hover {
-      background-color: var(--primary-color-hover);
-    }
+    font-size: 1.8rem;
   }
 }

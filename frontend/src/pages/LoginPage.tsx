@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../shared/hooks/redux';
 import { loginSuccess } from '../entities/user/userSlice';
 import { authApi } from '../shared/api/auth';
-import styles from '../shared/ui/Form.module.scss';
+import commonStyles from '../shared/ui/Common.module.scss';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -27,16 +27,18 @@ const LoginPage = () => {
     };
 
     return (
-        <form className={styles.form} onSubmit={handleSubmit}>
-            <h2 className={styles.title}>Login</h2>
-            <div className={styles.formGroup}>
-                <input className={styles.input} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required />
+        <form className={commonStyles.form} onSubmit={handleSubmit}>
+            <h2 className={commonStyles.title}>Вход</h2>
+            <div className={commonStyles.formGroup}>
+                <label htmlFor="email">Email</label>
+                <input id="email" className={commonStyles.input} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required />
             </div>
-            <div className={styles.formGroup}>
-                <input className={styles.input} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required />
+            <div className={commonStyles.formGroup}>
+                <label htmlFor="password">Пароль</label>
+                <input id="password" className={commonStyles.input} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
             </div>
-            {error && <p className={styles.error}>{error}</p>}
-            <button className={styles.button} type="submit">Login</button>
+            {error && <p className={commonStyles.error}>{error}</p>}
+            <button className={commonStyles.button} type="submit">Войти</button>
         </form>
     );
 };
