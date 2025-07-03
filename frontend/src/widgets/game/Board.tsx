@@ -1,7 +1,7 @@
 // Файл: frontend/src/widgets/game/Board.tsx
 
 import { useState } from 'react';
-import { useAppSelector, useAppDispatch } from '../../shared/hooks/redux';
+import { useAppSelector } from '../../shared/hooks/redux';
 import { socketService } from '../../shared/api/socket';
 import styles from './Board.module.scss';
 
@@ -27,33 +27,41 @@ const parseFen = (fen: string): (string | null)[][] => {
 };
 
 export const Board = () => {
-    const { fen, turn, playerColor } = useAppSelector(state => state.game);
+    const gameState = useAppSelector(state => state.game);
+    const { fen, turn, playerColor } = gameState;
     const { user } = useAppSelector(state => state.user);
     const boardState = parseFen(fen);
 
     const [selectedPiece, setSelectedPiece] = useState<Position | null>(null);
 
     const handleCellClick = (row: number, col: number) => {
-        if (playerColor !== turn) return; // Не наш ход
+        // 1. Проверяем, наш ли сейчас ход
+        if (playerColor !== turn) {
+            console.log(`Cannot move. My color: ${playerColor}, Turn: ${turn}`);
+            return;
+        }
 
-        const piece = boardState[row][col];
+        const pieceChar = boardState[row][col];
 
-        // Если есть выделенная шашка
+        // 2. Если уже есть выделенная шашка, пытаемся сделать ход
         if (selectedPiece) {
-            // Это ход
             const move = { from: selectedPiece, to: { row, col } };
-            // Отправляем ход на сервер (там будет валидация)
-            socketService.sendMove('game123', user!.id, move);
+
+            // Убеждаемся, что у нас есть все данные для отправки хода
+            if (user && gameState.id) {
+                socketService.sendMove(gameState.id, user.id, move);
+            }
+
+            // Сбрасываем выделение после попытки хода
             setSelectedPiece(null);
         } else {
-            const piece = boardState[row][col];
-            console.log('Clicked piece:', piece);
-            console.log('Piece color:', piece && ((piece === 'w' || piece === 'W') ? 'WHITE' : 'BLACK'));
-            console.log('My color:', playerColor);
-
-            // Выделяем шашку
-            if (piece && ((piece === 'w' || piece === 'W') ? 'WHITE' : 'BLACK') === playerColor) {
-                setSelectedPiece({ row, col });
+            // 3. Если выделенной шашки нет, пытаемся выделить новую
+            if (pieceChar) {
+                const pieceColor = (pieceChar === 'w' || pieceChar === 'W') ? 'WHITE' : 'BLACK';
+                // Выделяем, только если это наша шашка
+                if (pieceColor === playerColor) {
+                    setSelectedPiece({ row, col });
+                }
             }
         }
     };
@@ -70,9 +78,8 @@ export const Board = () => {
                             onClick={() => handleCellClick(r, c)}
                         >
                             {cell && (
-                                 <div
-                                onClick={() => handleCellClick(r, c)}
-                                className={`${styles.piece} ${(cell === 'w' || cell === 'W') ? styles.white : styles.black} ${isSelected ? styles.selected : ''}`}
+                                <div
+                                    className={`${styles.piece} ${(cell === 'w' || cell === 'W') ? styles.white : styles.black} ${isSelected ? styles.selected : ''}`}
                                 >
                                     {(cell === 'W' || cell === 'B') && 'K'}
                                 </div>

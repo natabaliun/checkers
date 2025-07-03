@@ -2,37 +2,86 @@
 
 import { io, Socket } from 'socket.io-client';
 import { store } from '../../app/store';
-import { setGameState, setMyColor } from '../../entities/game/gameSlice';
+import { setGameState } from '../../entities/game/gameSlice';
 
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';
 
 class SocketService {
-    private socket: Socket | null = null;
+    public lobbySocket: Socket | null = null;
+    public gameSocket: Socket | null = null;
 
-    connect() {
-        this.socket = io(SOCKET_URL);
+    connect(userId: string) {
+        if (!userId) {
+            console.error("SocketService: Cannot connect without userId.");
+            return;
+        }
 
-        this.socket.on('connect', () => {
-            console.log('Socket connected:', this.socket?.id);
-        });
+        // --- Подключение к лобби ---
+        if (!this.lobbySocket || !this.lobbySocket.connected) {
+            this.lobbySocket = io(`${SOCKET_URL}/lobby`);
+            this.lobbySocket.on('connect', () => console.log('Lobby socket connected:', this.lobbySocket?.id));
+        }
 
-        this.socket.on('game:state_update', (data) => {
-            console.log('SOCKET: Received game state update:', data);
-            store.dispatch(setGameState(data));
-            // ВСЁ. Логику setMyColor убрали отсюда, она теперь в компоненте.
-        });
+        // --- Подключение к игровому пространству ---
+        if (!this.gameSocket || !this.gameSocket.connected) {
+            this.gameSocket = io(`${SOCKET_URL}/game`, {
+                query: { userId },
+                reconnection: false
+            });
 
-        this.socket.on('error', (data) => {
-            alert(`Server error: ${data.message || data}`);
-        });
+            this.gameSocket.on('connect', () => {
+                console.log(`Game socket connected: ${this.gameSocket?.id} for user ${userId}`);
+            });
+
+            this.gameSocket.on('game:state_update', (data) => {
+                console.log('Received game state update:', data);
+                store.dispatch(setGameState(data));
+            });
+
+            this.gameSocket.on('game:reconnect', (data) => {
+                console.log('Reconnected to game:', data);
+                store.dispatch(setGameState(data));
+            });
+
+            this.gameSocket.on('error', (data) => alert(`Error: ${data.message || data}`));
+        }
     }
 
-    joinGame(gameId: string, userId: string) {
-        this.socket?.emit('game:join', { gameId, userId });
+    // Общий метод для безопасной отправки событий
+    private emitSafely(socket: Socket | null, event: string, data: any, callback?: (response: any) => void) {
+        if (socket && socket.connected) {
+            socket.emit(event, data, callback);
+        } else {
+            console.error(`Cannot emit event '${event}': socket is not connected.`);
+            alert("Connection is not ready. Please refresh the page or wait a moment.");
+        }
+    }
+
+    createGame(userId: string, callback: (data: any) => void) {
+        this.emitSafely(this.gameSocket, 'game:create', { userId }, callback);
+    }
+
+    joinGame(gameId: string, userId: string, callback: (data: any) => void) {
+        this.emitSafely(this.gameSocket, 'game:join', { gameId, userId }, callback);
     }
 
     sendMove(gameId: string, userId: string, move: any) {
-        this.socket?.emit('game:move', { gameId, userId, move });
+        this.emitSafely(this.gameSocket, 'game:move', { gameId, userId, move });
+    }
+
+    onLobbyUpdate(callback: (games: any[]) => void) {
+        this.lobbySocket?.on('lobby:games_list', callback);
+    }
+
+    offLobbyUpdate() {
+        this.lobbySocket?.off('lobby:games_list');
+    }
+
+    disconnect() {
+        this.lobbySocket?.disconnect();
+        this.gameSocket?.disconnect();
+        this.lobbySocket = null;
+        this.gameSocket = null;
     }
 }
 

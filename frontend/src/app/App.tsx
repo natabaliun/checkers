@@ -10,6 +10,8 @@ import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 import ProfilePage from '../pages/ProfilePage';
 import GamePage from '../pages/GamePage';
+import { LobbyPage } from '../pages/LobbyPage';
+import { ReturnToGame } from '../features/auth/ReturnToGame';
 import styles from './App.module.scss'; // Импортируем стили
 
 function App() {
@@ -52,16 +54,17 @@ function App() {
             </header>
             <main>
                 <Routes>
-                    <Route path="/" element={<HomePage />} />
+                    <Route path="/" element={<LobbyPage />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
 
                     <Route element={<ProtectedRoute />}>
                         <Route path="/profile" element={<ProfilePage />} />
-                        <Route path="/game" element={<GamePage />} />
+                        <Route path="/game/:gameId" element={<GamePage />} />
                     </Route>
                 </Routes>
             </main>
+            <ReturnToGame />
         </div>
     );
 }

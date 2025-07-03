@@ -3,72 +3,128 @@
 import { Server, Socket } from 'socket.io';
 import { gameManager } from '../../application/game/GameManager';
 
-const MOCK_GAME_ID = 'game123';
-
 export function setupGameGateway(io: Server) {
-    // Убедимся, что игра существует при старте сервера
-    gameManager.findOrCreateGame(MOCK_GAME_ID);
+    const lobbyNsp = io.of("/lobby");
+    const gameNsp = io.of("/game");
 
-    io.on('connection', (socket: Socket) => {
-        console.log(`Socket connected: ${socket.id}`);
+    const broadcastLobbyUpdate = async () => {
+        const games = await gameManager.getLobbyGames();
+        lobbyNsp.emit('lobby:games_list', games);
+    };
 
-        socket.on('game:join', ({ gameId, userId }) => {
-            if (gameId !== MOCK_GAME_ID) return socket.emit('error', 'Game not found');
+    // --- НОВЫЙ ХЕЛПЕР ДЛЯ ПЕРСОНАЛЬНОЙ РАССЫЛКИ СОСТОЯНИЯ ИГРЫ ---
+    const broadcastGameState = (gameId: string) => {
+        const game = gameManager.getGame(gameId);
+        if (!game) return;
 
-            const game = gameManager.findOrCreateGame(gameId);
+        // Получаем все сокеты в игровой комнате
+        const roomSockets = gameNsp.in(gameId);
+
+        // Для каждого сокета в комнате отправляем персональное состояние
+        roomSockets.fetchSockets().then(sockets => {
+            sockets.forEach(socket => {
+                // Извлекаем userId из данных подключения сокета
+                const userId = socket.handshake.query.userId as string;
+                // Отправляем событие с состоянием, вычисленным для этого userId
+                socket.emit('game:state_update', game.getState(userId));
+            });
+        }).catch(err => console.error("Error fetching sockets:", err));
+    };
+
+    // --- Namespace для Лобби ---
+    lobbyNsp.on('connection', async (socket) => {
+        console.log(`Socket connected to lobby: ${socket.id}`);
+
+        await broadcastLobbyUpdate();
+
+        socket.on('lobby:get_initial_list', async () => {
+            await broadcastLobbyUpdate();
+        });
+
+        socket.on('disconnect', () => {
+            console.log(`Socket disconnected from lobby: ${socket.id}`);
+        });
+    });
+
+    // --- Namespace для Игры ---
+    gameNsp.on('connection', (socket: Socket) => {
+        const userId = socket.handshake.query.userId as string;
+        if (!userId) {
+            socket.disconnect();
+            return;
+        }
+
+        console.log(`Socket connected to game namespace: ${socket.id}, User: ${userId}`);
+
+        const activeGame = gameManager.getGameByUserId(userId);
+        if (activeGame) {
+            socket.join(activeGame.id);
+            // При переподключении отправляем персональное состояние
+            socket.emit('game:reconnect', activeGame.getState(userId));
+        }
+
+        socket.on('game:create', async (data, callback) => {
+            try {
+                const newGame = await gameManager.createGame(data.userId);
+                socket.join(newGame.id);
+                if (callback) {
+                    callback(newGame.getState(data.userId));
+                }
+                await broadcastLobbyUpdate();
+            } catch (error) {
+                console.error("Error creating game:", error);
+                if (callback) {
+                    callback({ error: "Failed to create game on server." });
+                }
+            }
+        });
+
+        socket.on('game:join', async ({ gameId, userId }, callback) => {
+            const game = await gameManager.joinGame(gameId, userId);
+            if (!game) {
+                if(callback) callback({ error: 'Game not found' });
+                return;
+            }
 
             socket.join(gameId);
-            const playerAdded = game.addPlayer(userId);
 
-            if (playerAdded) {
-                console.log(`User ${userId} assigned to game ${gameId}`);
-            } else {
-                console.log(`User ${userId} is observing game ${gameId}`);
-            }
+            // --- ИСПОЛЬЗУЕМ НОВЫЙ ХЕЛПЕР ---
+            broadcastGameState(gameId);
 
-            // Если после добавления игрока игра готова, отправляем всем состояние
-            if (game.isReady()) {
-                io.to(gameId).emit('game:state_update', {
-                    fen: game.board.toFen(),
-                    turn: game.turn,
-                    players: game.playerColors, // Отправляем маппинг цветов
-                });
-            }
+            if(callback) callback(game.getState(userId));
+            await broadcastLobbyUpdate();
         });
 
         socket.on('game:move', ({ gameId, userId, move }) => {
             const game = gameManager.getGame(gameId);
-            if (!game) return socket.emit('error', 'Game not found');
+            if (!game) return;
 
-            const playerColor = game.playerColors[userId];
+            // Проверяем, является ли отправитель игроком
+            const playerColor = game.playerColors ? game.playerColors[userId] : null;
+            if (!playerColor) {
+                return socket.emit('error', { message: 'You are not a player in this game.' });
+            }
+
+            // Проверяем, его ли сейчас ход
             if (game.turn !== playerColor) {
                 return socket.emit('error', { message: 'Not your turn' });
             }
 
-            // ... (та же упрощенная логика хода)
             try {
-                const isCapture = Math.abs(move.from.row - move.to.row) === 2;
-                if (isCapture) {
-                    game.board.removePieceAt({
-                        row: (move.from.row + move.to.row) / 2,
-                        col: (move.from.col + move.to.col) / 2
-                    });
-                }
-                game.board.movePiece(move.from, move.to);
-                game.turn = game.turn === 'WHITE' ? 'BLACK' : 'WHITE';
+                // Здесь в будущем будет валидация хода
+                game.makeMove(move.from, move.to);
 
-                io.to(gameId).emit('game:state_update', {
-                    fen: game.board.toFen(),
-                    turn: game.turn,
-                    players: game.playerColors,
-                });
+                // --- ИСПОЛЬЗУЕМ НОВЫЙ ХЕЛПЕР ---
+                broadcastGameState(gameId);
+
             } catch (error: any) {
                 socket.emit('error', { message: error.message });
             }
         });
 
-        socket.on('disconnect', () => {
-            console.log(`Socket disconnected: ${socket.id}`);
-        });
+        socket.on('game:finish', async({gameId}) => {
+            await gameManager.finishGame(gameId);
+            await broadcastLobbyUpdate();
+        })
     });
 }

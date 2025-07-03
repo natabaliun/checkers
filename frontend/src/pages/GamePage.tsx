@@ -1,51 +1,64 @@
 // Файл: frontend/src/pages/GamePage.tsx
 
-import { useEffect } from 'react';
-import { socketService } from '../shared/api/socket';
+import React, { useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../shared/hooks/redux';
+import { socketService } from '../shared/api/socket';
 import { Board } from '../widgets/game/Board';
 import styles from './GamePage.module.scss';
-import { setMyColor } from '../entities/game/gameSlice';
+// Убираем resetGameState из импорта, чтобы не использовать его
+// import { resetGameState } from '../entities/game/gameSlice';
 
 const GamePage = () => {
-    const { user } = useAppSelector(state => state.user);
-    const { turn, playerColor, players } = useAppSelector(state => state.game);
+    const { gameId } = useParams<{ gameId: string }>();
     const dispatch = useAppDispatch();
+    const navigate = useNavigate();
+
+    const user = useAppSelector(state => state.user.user);
+    const gameState = useAppSelector(state => state.game);
 
     useEffect(() => {
-        socketService.connect();
-
-        if (user) {
-            // Просто отправляем свой реальный ID на сервер
-            socketService.joinGame('game123', user.id);
+        if (!gameId || !user) {
+            navigate('/');
+            return;
         }
-        // Этот useEffect должен выполняться только один раз при монтировании
-    }, [user]);
+        socketService.connect(user.id);
 
-    // Новый useEffect для определения цвета игрока
-    useEffect(() => {
-        // Этот эффект будет срабатывать каждый раз, когда обновляется user или players
-        if (user && players && players[user.id]) {
-            dispatch(setMyColor({ userId: user.id }));
+        if (gameState.id !== gameId) {
+            socketService.joinGame(gameId, user.id, (data) => {
+                if (data.error) {
+                    alert(data.error);
+                    navigate('/');
+                }
+            });
         }
-    }, [user, players, dispatch]);
+
+        // ВРЕМЕННО УБИРАЕМ ОЧИСТКУ, ЧТОБЫ ИСКЛЮЧИТЬ ЕЕ ВЛИЯНИЕ
+        // return () => {
+        //     dispatch(resetGameState());
+        // }
+    }, [gameId, user, dispatch, navigate]);
 
 
-    if (!user) {
-        return <h2>Please log in to play a game.</h2>
+    if (gameState.status === 'IDLE' || gameState.id !== gameId) {
+        return <div>Loading game...</div>;
     }
 
     return (
         <div className={styles.gamePage}>
+            {/* ... JSX без изменений ... */}
             <div className={styles.status}>
-                {
-                    !playerColor && "Waiting for opponent..."
-                }
-                {
-                    playerColor && `You are playing as ${playerColor}. Turn: ${turn} ${turn === playerColor ? "(Your turn)" : ""}`
-                }
+                Game ID: {gameState.id} | Status: {gameState.status}
             </div>
-            <Board />
+            <div className={styles.status}>
+                Turn: {gameState.turn}
+                {gameState.playerColor && ` | You are ${gameState.playerColor}`}
+                {gameState.turn === gameState.playerColor && " (Your turn)"}
+            </div>
+            {gameState.status === 'PLAYING' ?
+                <Board /> :
+                <h2>Waiting for opponent to join...</h2>
+            }
         </div>
     );
 };
