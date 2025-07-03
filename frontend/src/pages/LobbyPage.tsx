@@ -2,16 +2,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppSelector, useAppDispatch } from '../shared/hooks/redux'; // <-- Импортируем useAppDispatch
+import { useAppSelector } from '../shared/hooks/redux';
 import { socketService } from '../shared/api/socket';
-import { setGameState } from '../entities/game/gameSlice'; // <-- Импортируем наш экшен
 
 export const LobbyPage = () => {
     const { user } = useAppSelector(state => state.user);
     const [games, setGames] = useState<any[]>([]);
     const [isConnected, setIsConnected] = useState(false);
     const navigate = useNavigate();
-    const dispatch = useAppDispatch(); // <-- Получаем dispatch
 
     useEffect(() => {
         if (!user) return;
@@ -29,7 +27,9 @@ export const LobbyPage = () => {
         gameSocket?.on('disconnect', handleDisconnect);
         lobbySocket?.on('lobby:games_list', handleLobbyUpdate);
 
-        if (gameSocket?.connected) handleConnect();
+        if (gameSocket?.connected) {
+            handleConnect();
+        }
 
         return () => {
             gameSocket?.off('connect', handleConnect);
@@ -39,13 +39,12 @@ export const LobbyPage = () => {
     }, [user]);
 
     const handleCreateGame = () => {
-        if (!user) return;
+        if (!user || !isConnected) return;
+
+        // Отправляем событие и в колбэке ТОЛЬКО переходим по URL.
+        // Состояние игры будет запрошено на самой странице игры.
         socketService.createGame(user.id, (gameData) => {
             if (gameData && !gameData.error) {
-                // --- ТО ЖЕ ИСПРАВЛЕНИЕ, ЧТО И ДЛЯ JOIN ---
-                // 1. Обновляем стор
-                dispatch(setGameState(gameData));
-                // 2. Переходим на страницу
                 navigate(`/game/${gameData.id}`);
             } else {
                 alert(`Failed to create game: ${gameData?.error || 'Unknown error'}`);
@@ -54,21 +53,13 @@ export const LobbyPage = () => {
     };
 
     const handleJoinGame = (gameId: string) => {
-        if (!user) return;
-        socketService.joinGame(gameId, user.id, (gameData) => {
-            if (gameData && !gameData.error) {
-                // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
-                // 1. Сначала диспатчим экшен, чтобы обновить Redux-стор
-                dispatch(setGameState(gameData));
-                // 2. И только потом переходим на страницу игры
-                navigate(`/game/${gameData.id}`);
-            } else {
-                alert(`Failed to join game: ${gameData?.error || 'Unknown error'}`);
-            }
-        });
-    }
+        if (!user || !isConnected) return;
 
-    // ... (стили и JSX остаются без изменений)
+        // Просто переходим на страницу игры.
+        // GamePage сам отправит событие 'game:join', чтобы получить свое состояние.
+        navigate(`/game/${gameId}`);
+    };
+
     const buttonStyle: React.CSSProperties = {
         padding: '8px 12px',
         fontSize: '14px',

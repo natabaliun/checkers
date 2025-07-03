@@ -2,7 +2,7 @@
 
 import { Board } from '../../domain/game/Board';
 import { prisma } from '../../infrastructure/database/prisma';
-import { GameInstance } from './GameInstance'; // <-- ИМПОРТИРУЕМ КЛАСС
+import { GameInstance } from './GameInstance';
 
 class GameManager {
     private games: Map<string, GameInstance> = new Map();
@@ -57,9 +57,7 @@ class GameManager {
             if (game.players.BLACK) playerIds.add(game.players.BLACK);
         });
 
-        if (playerIds.size === 0) {
-            return [];
-        }
+        if (playerIds.size === 0) return [];
 
         const users = await prisma.user.findMany({
             where: { id: { in: Array.from(playerIds) } },
@@ -83,6 +81,26 @@ class GameManager {
         const game = this.games.get(gameId);
         if (!game) return;
 
+        // Сохраняем игру в историю, только если она была начата и есть результат
+        if (game.status === 'FINISHED' && game.result && game.players.WHITE && game.players.BLACK) {
+
+            let gameResult: 'WHITE_WIN' | 'BLACK_WIN' | 'DRAW' = 'DRAW';
+            if (game.result.winner === 'WHITE') gameResult = 'WHITE_WIN';
+            if (game.result.winner === 'BLACK') gameResult = 'BLACK_WIN';
+
+            await prisma.completedGame.create({
+                data: {
+                    playerWhiteId: game.players.WHITE,
+                    playerBlackId: game.players.BLACK,
+                    result: gameResult,
+                    moves: JSON.stringify(game.moveHistory), // Сохраняем ходы
+                    startedAt: game.startedAt,
+                }
+            });
+            // TODO: Обновить рейтинг Эло игроков в их UserProfile
+        }
+
+        // Очищаем activeGameId у игроков
         if (game.players.WHITE) {
             this.userGameMap.delete(game.players.WHITE);
             await prisma.user.update({ where: { id: game.players.WHITE }, data: { activeGameId: null }});

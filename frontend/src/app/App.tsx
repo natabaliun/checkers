@@ -9,7 +9,7 @@ import HomePage from '../pages/HomePage';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 import ProfilePage from '../pages/ProfilePage';
-import GamePage from '../pages/GamePage';
+import { GamePage } from '../pages/GamePage';
 import { LobbyPage } from '../pages/LobbyPage';
 import { ReturnToGame } from '../features/auth/ReturnToGame';
 import styles from './App.module.scss'; // Импортируем стили

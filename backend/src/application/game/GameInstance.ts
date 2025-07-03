@@ -5,6 +5,7 @@ import { GameRules } from '../../domain/game/GameRules';
 import { PlayerColor, Position, Move } from '../../domain/game/types';
 
 export type GameStatus = 'WAITING' | 'PLAYING' | 'FINISHED';
+export type GameResult = { winner: PlayerColor | 'DRAW', reason: 'NO_MOVES' | 'NO_PIECES' | 'RESIGNATION' };
 
 export class GameInstance {
     public board: Board;
@@ -15,7 +16,9 @@ export class GameInstance {
     public players: { [color in PlayerColor]?: string } = {};
     public playerColors: { [userId: string]: PlayerColor } = {};
     public spectators: string[] = [];
-    private moveHistory: Move[] = [];
+    public moveHistory: Move[] = [];
+    public result: GameResult | null = null;
+    public startedAt: Date = new Date();
 
     constructor(public id: string, creatorId: string) {
         this.board = new Board();
@@ -33,6 +36,7 @@ export class GameInstance {
             this.players.BLACK = playerId;
             this.playerColors[playerId] = 'BLACK';
             this.status = 'PLAYING';
+            this.startedAt = new Date(); // Устанавливаем точное время начала игры
             return 'BLACK';
         }
 
@@ -43,10 +47,10 @@ export class GameInstance {
     }
 
     /**
-     * Основной метод для выполнения хода с полной проверкой правил.
-     * Выбрасывает ошибку, если ход невалидный.
+     * Основной метод для выполнения хода.
+     * Возвращает true, если игра завершилась после этого хода.
      */
-    public makeMove(playerId: string, move: Move): void {
+    public makeMove(playerId: string, move: Move): boolean {
         const playerColor = this.playerColors[playerId];
         if (this.turn !== playerColor) {
             throw new Error("Not your turn");
@@ -57,7 +61,6 @@ export class GameInstance {
             throw new Error("Invalid move");
         }
 
-        // Если это взятие, удаляем срубленную шашку
         if (validationResult.capture) {
             this.board.removePieceAt(validationResult.capture.captured);
         }
@@ -65,28 +68,47 @@ export class GameInstance {
         this.board.movePiece(move.from, move.to);
         this.moveHistory.push(move);
 
-        // Проверяем, может ли та же шашка совершить еще одно взятие
         const pieceAfterMove = this.board.getPieceAt(move.to);
         if (validationResult.capture && pieceAfterMove) {
-            // Ищем новые взятия только с той клетки, куда мы только что походили
             const nextCaptures = this.rules.getCapturesForPiece(move.to);
-
-            // Если есть еще взятия для этой же шашки, ход не передается
             if (nextCaptures.length > 0) {
-                return; // Ход остается у того же игрока
+                return false; // Игра не закончена, ход не передается
             }
         }
 
-        // Передаем ход другому игроку
         this.turn = this.turn === 'WHITE' ? 'BLACK' : 'WHITE';
 
-        // TODO: Проверка на конец игры (нет шашек или нет ходов)
         const opponentColor = this.turn;
-        const opponentHasMoves = this.rules.findPossibleCaptures(opponentColor).length > 0 || this.rules.findPossibleMoves(opponentColor).length > 0;
-        if (!opponentHasMoves || this.board.pieceCounts[opponentColor] === 0) {
+
+        if (this.board.pieceCounts[opponentColor] === 0) {
             this.status = 'FINISHED';
-            // TODO: определить победителя
+            this.result = { winner: playerColor, reason: 'NO_PIECES' };
+            return true;
         }
+
+        const opponentHasMoves = this.rules.findPossibleCaptures(opponentColor).length > 0 || this.rules.findPossibleMoves(opponentColor).length > 0;
+        if (!opponentHasMoves) {
+            this.status = 'FINISHED';
+            this.result = { winner: playerColor, reason: 'NO_MOVES' };
+            return true;
+        }
+
+        return false; // Игра продолжается
+    }
+
+    /**
+     * Метод для досрочного завершения игры (сдача).
+     */
+    public resign(playerId: string): boolean {
+        const playerColor = this.playerColors[playerId];
+        if (!playerColor || this.status !== 'PLAYING') {
+            return false; // Нельзя сдаться, если вы не игрок или игра не идет
+        }
+
+        this.status = 'FINISHED';
+        const winner = playerColor === 'WHITE' ? 'BLACK' : 'WHITE';
+        this.result = { winner, reason: 'RESIGNATION' };
+        return true;
     }
 
     public getState(userId?: string) {
@@ -100,7 +122,8 @@ export class GameInstance {
             turn: this.turn,
             status: this.status,
             players: this.players,
-            playerColor: getPlayerColor(userId)
+            playerColor: getPlayerColor(userId),
+            result: this.result, // Добавляем результат в состояние
         };
     }
 }
