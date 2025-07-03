@@ -18,7 +18,6 @@ export class Bot {
         const possibleCaptures = rules.findPossibleCaptures(this.color);
         if (possibleCaptures.length > 0) {
             // "Жадный" алгоритм: просто берем первое попавшееся взятие.
-            // В будущем можно усложнить: выбирать взятие, которое ведет к лучшей позиции.
             const bestCapture = possibleCaptures[0];
             return { from: bestCapture.from, to: bestCapture.to };
         }

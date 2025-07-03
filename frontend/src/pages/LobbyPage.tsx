@@ -2,14 +2,16 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppSelector } from '../shared/hooks/redux';
+import { useAppSelector, useAppDispatch } from '../shared/hooks/redux';
 import { socketService } from '../shared/api/socket';
+import { setGameState } from '../entities/game/gameSlice';
 
 export const LobbyPage = () => {
     const { user } = useAppSelector(state => state.user);
     const [games, setGames] = useState<any[]>([]);
     const [isConnected, setIsConnected] = useState(false);
     const navigate = useNavigate();
+    const dispatch = useAppDispatch();
 
     useEffect(() => {
         if (!user) return;
@@ -27,9 +29,7 @@ export const LobbyPage = () => {
         gameSocket?.on('disconnect', handleDisconnect);
         lobbySocket?.on('lobby:games_list', handleLobbyUpdate);
 
-        if (gameSocket?.connected) {
-            handleConnect();
-        }
+        if (gameSocket?.connected) handleConnect();
 
         return () => {
             gameSocket?.off('connect', handleConnect);
@@ -40,11 +40,9 @@ export const LobbyPage = () => {
 
     const handleCreateGame = () => {
         if (!user || !isConnected) return;
-
-        // Отправляем событие и в колбэке ТОЛЬКО переходим по URL.
-        // Состояние игры будет запрошено на самой странице игры.
         socketService.createGame(user.id, (gameData) => {
             if (gameData && !gameData.error) {
+                dispatch(setGameState(gameData));
                 navigate(`/game/${gameData.id}`);
             } else {
                 alert(`Failed to create game: ${gameData?.error || 'Unknown error'}`);
@@ -52,11 +50,20 @@ export const LobbyPage = () => {
         });
     };
 
+    const handleCreatePveGame = (playerColor: 'WHITE' | 'BLACK') => {
+        if (!user || !isConnected) return;
+        socketService.createPveGame(user.id, playerColor, (gameData) => {
+            if (gameData && !gameData.error) {
+                dispatch(setGameState(gameData));
+                navigate(`/game/${gameData.id}`);
+            } else {
+                alert(`Failed to create PvE game: ${gameData?.error || 'Unknown error'}`);
+            }
+        });
+    };
+
     const handleJoinGame = (gameId: string) => {
         if (!user || !isConnected) return;
-
-        // Просто переходим на страницу игры.
-        // GamePage сам отправит событие 'game:join', чтобы получить свое состояние.
         navigate(`/game/${gameId}`);
     };
 
@@ -64,7 +71,7 @@ export const LobbyPage = () => {
         padding: '8px 12px',
         fontSize: '14px',
         cursor: 'pointer',
-        margin: '0 10px',
+        margin: '5px',
         border: '1px solid #ccc',
         borderRadius: '4px'
     };
@@ -78,53 +85,70 @@ export const LobbyPage = () => {
     return (
         <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
             <h2>Lobby (Connection: {isConnected ? 'Online' : 'Connecting...'})</h2>
-            <button
-                onClick={handleCreateGame}
-                style={isConnected ? buttonStyle : disabledButtonStyle}
-                disabled={!isConnected}
-            >
-                {isConnected ? 'Create New Game' : 'Connecting...'}
-            </button>
 
-            <hr style={{ margin: '20px 0' }}/>
+            <div style={{ marginBottom: '20px', padding: '15px', border: '1px solid #eee', borderRadius: '8px' }}>
+                <h4>Play vs Bot</h4>
+                <button
+                    onClick={() => handleCreatePveGame('WHITE')}
+                    style={isConnected ? buttonStyle : disabledButtonStyle}
+                    disabled={!isConnected}
+                >
+                    as White
+                </button>
+                <button
+                    onClick={() => handleCreatePveGame('BLACK')}
+                    style={isConnected ? buttonStyle : disabledButtonStyle}
+                    disabled={!isConnected}
+                >
+                    as Black
+                </button>
+            </div>
 
-            <h3>Available Games to Join:</h3>
-            {games.filter(g => g.status === 'WAITING').length > 0 ? (
-                <ul>
-                    {games.filter(g => g.status === 'WAITING').map(game => (
-                        <li key={game.id} style={{ marginBottom: '10px', display: 'flex', alignItems: 'center' }}>
-                            <span>Game by <strong>{game.players.WHITE || '...'}</strong></span>
-                            <button
-                                onClick={() => handleJoinGame(game.id)}
-                                style={isConnected ? buttonStyle : disabledButtonStyle}
-                                disabled={!isConnected}
-                            >
-                                Join
-                            </button>
-                        </li>
-                    ))}
-                </ul>
-            ) : <p>No available games to join.</p>}
+            <div style={{ padding: '15px', border: '1px solid #eee', borderRadius: '8px' }}>
+                <h4>Play vs Player</h4>
+                <button
+                    onClick={handleCreateGame}
+                    style={isConnected ? buttonStyle : disabledButtonStyle}
+                    disabled={!isConnected}
+                >
+                    {isConnected ? 'Create New PvP Game' : 'Connecting...'}
+                </button>
 
+                <h5>Available Games to Join:</h5>
+                {games.filter(g => g.status === 'WAITING').length > 0 ? (
+                    <ul>
+                        {games.filter(g => g.status === 'WAITING').map(game => (
+                            <li key={game.id} style={{ marginBottom: '10px', display: 'flex', alignItems: 'center' }}>
+                                <span>Game by <strong>{game.players.WHITE || '...'}</strong></span>
+                                <button
+                                    onClick={() => handleJoinGame(game.id)}
+                                    style={isConnected ? buttonStyle : disabledButtonStyle}
+                                    disabled={!isConnected}
+                                >
+                                    Join
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                ) : <p>No available games to join.</p>}
 
-            <hr style={{ margin: '20px 0' }}/>
-
-            <h3>Ongoing Games (Spectate):</h3>
-            {games.filter(g => g.status === 'PLAYING').length > 0 ? (
-                <ul>
-                    {games.filter(g => g.status === 'PLAYING').map(game => (
-                        <li key={game.id} style={{ marginBottom: '10px', display: 'flex', alignItems: 'center' }}>
-                            <span><strong>{game.players.WHITE || '?'}</strong> vs <strong>{game.players.BLACK || '?'}</strong></span>
-                            <button
-                                onClick={() => navigate(`/game/${game.id}`)}
-                                style={buttonStyle}
-                            >
-                                Spectate
-                            </button>
-                        </li>
-                    ))}
-                </ul>
-            ) : <p>No ongoing games to watch.</p>}
+                <h5>Ongoing Games (Spectate):</h5>
+                {games.filter(g => g.status === 'PLAYING').length > 0 ? (
+                    <ul>
+                        {games.filter(g => g.status === 'PLAYING').map(game => (
+                            <li key={game.id} style={{ marginBottom: '10px', display: 'flex', alignItems: 'center' }}>
+                                <span><strong>{game.players.WHITE || '?'}</strong> vs <strong>{game.players.BLACK || '?'}</strong></span>
+                                <button
+                                    onClick={() => navigate(`/game/${game.id}`)}
+                                    style={buttonStyle}
+                                >
+                                    Spectate
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                ) : <p>No ongoing games to watch.</p>}
+            </div>
         </div>
     );
 };

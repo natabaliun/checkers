@@ -3,6 +3,8 @@
 import { Board } from '../../domain/game/Board';
 import { prisma } from '../../infrastructure/database/prisma';
 import { GameInstance } from './GameInstance';
+import { Bot } from './Bot';
+import { PlayerColor } from '../../domain/game/types';
 
 class GameManager {
     private games: Map<string, GameInstance> = new Map();
@@ -41,6 +43,44 @@ class GameManager {
         return game;
     }
 
+    public async createPveGame(playerId: string, playerColor: PlayerColor): Promise<GameInstance> {
+        const humanPlayerId = playerId;
+        const botPlayerId = 'bot-player';
+
+        const playerWhiteId = playerColor === 'WHITE' ? humanPlayerId : botPlayerId;
+        const playerBlackId = playerColor === 'BLACK' ? humanPlayerId : botPlayerId;
+
+        const activeGameRecord = await prisma.activeGame.create({
+            data: {
+                playerWhiteId,
+                playerBlackId,
+                fen: new Board().toFen(),
+            }
+        });
+
+        const game = new GameInstance(activeGameRecord.id, playerWhiteId);
+
+        game.addPlayer(playerBlackId);
+
+        game.isPve = true;
+        const botColor = playerColor === 'WHITE' ? 'BLACK' : 'WHITE';
+        game.bot = new Bot(botColor);
+
+        this.games.set(game.id, game);
+        this.userGameMap.set(humanPlayerId, game.id);
+
+        await prisma.user.update({ where: { id: humanPlayerId }, data: { activeGameId: game.id }});
+
+        return game;
+    }
+
+    public async assignBotToGame(gameId: string, botId: string) {
+        await prisma.activeGame.update({
+            where: { id: gameId },
+            data: { playerBlackId: botId }
+        });
+    }
+
     public getGame(gameId: string): GameInstance | undefined {
         return this.games.get(gameId);
     }
@@ -69,7 +109,7 @@ class GameManager {
         users.forEach(user => userIdToNickname.set(user.id, user.nickname));
 
         return Array.from(this.games.values())
-            .filter(game => !game.isPve) // Дополнительная фильтрация
+            .filter(game => !game.isPve)
             .map(game => ({
                 id: game.id,
                 status: game.status,
@@ -80,25 +120,16 @@ class GameManager {
             }));
     }
 
-    public async assignBotToGame(gameId: string, botId: string) {
-        await prisma.activeGame.update({
-            where: { id: gameId },
-            data: { playerBlackId: botId }
-        });
-    }
-
     public async finishGame(gameId: string) {
         const game = this.games.get(gameId);
         if (!game) return;
 
         if (game.status === 'FINISHED' && game.result && game.players.WHITE && game.players.BLACK) {
-
-            let gameResult: 'WHITE_WIN' | 'BLACK_WIN' | 'DRAW' = 'DRAW';
-            if (game.result.winner === 'WHITE') gameResult = 'WHITE_WIN';
-            if (game.result.winner === 'BLACK') gameResult = 'BLACK_WIN';
-
-            // Не сохраняем в историю игры с ботом (можно изменить по желанию)
             if (!game.isPve) {
+                let gameResult: 'WHITE_WIN' | 'BLACK_WIN' | 'DRAW' = 'DRAW';
+                if (game.result.winner === 'WHITE') gameResult = 'WHITE_WIN';
+                if (game.result.winner === 'BLACK') gameResult = 'BLACK_WIN';
+
                 await prisma.completedGame.create({
                     data: {
                         playerWhiteId: game.players.WHITE,
@@ -111,11 +142,11 @@ class GameManager {
             }
         }
 
-        if (game.players.WHITE) {
+        if (game.players.WHITE && game.players.WHITE !== 'bot-player') {
             this.userGameMap.delete(game.players.WHITE);
             await prisma.user.update({ where: { id: game.players.WHITE }, data: { activeGameId: null }});
         }
-        if (game.players.BLACK && !game.isPve) { // Не пытаемся обновить профиль бота
+        if (game.players.BLACK && game.players.BLACK !== 'bot-player') {
             this.userGameMap.delete(game.players.BLACK);
             await prisma.user.update({ where: { id: game.players.BLACK }, data: { activeGameId: null }});
         }

@@ -16,38 +16,21 @@ class SocketService {
             return;
         }
 
-        // --- Подключение к лобби ---
         if (!this.lobbySocket || !this.lobbySocket.connected) {
             this.lobbySocket = io(`${SOCKET_URL}/lobby`);
             this.lobbySocket.on('connect', () => console.log('Lobby socket connected:', this.lobbySocket?.id));
         }
 
-        // --- Подключение к игровому пространству ---
         if (!this.gameSocket || !this.gameSocket.connected) {
             this.gameSocket = io(`${SOCKET_URL}/game`, {
                 query: { userId },
                 reconnection: false
             });
-
-            this.gameSocket.on('connect', () => {
-                console.log(`Game socket connected: ${this.gameSocket?.id} for user ${userId}`);
-            });
-
-            this.gameSocket.on('game:state_update', (data) => {
-                console.log('Received game state update:', data);
-                store.dispatch(setGameState(data));
-            });
-
-            this.gameSocket.on('game:reconnect', (data) => {
-                console.log('Reconnected to game:', data);
-                store.dispatch(setGameState(data));
-            });
-
+            this.gameSocket.on('connect', () => console.log(`Game socket connected: ${this.gameSocket?.id} for user ${userId}`));
             this.gameSocket.on('error', (data) => alert(`Error: ${data.message || data}`));
         }
     }
 
-    // Общий метод для безопасной отправки событий
     private emitSafely(socket: Socket | null, event: string, data: any, callback?: (response: any) => void) {
         if (socket && socket.connected) {
             socket.emit(event, data, callback);
@@ -59,6 +42,10 @@ class SocketService {
 
     createGame(userId: string, callback: (data: any) => void) {
         this.emitSafely(this.gameSocket, 'game:create', { userId }, callback);
+    }
+
+    createPveGame(userId: string, playerColor: 'WHITE' | 'BLACK', callback: (data: any) => void) {
+        this.emitSafely(this.gameSocket, 'game:create_pve', { userId, playerColor }, callback);
     }
 
     joinGame(gameId: string, userId: string, callback: (data: any) => void) {
