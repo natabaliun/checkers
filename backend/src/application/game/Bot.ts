@@ -16,7 +16,7 @@ export class Bot {
     constructor(public readonly color: PlayerColor) {}
 
     public findBestMove(board: Board, rules: GameRules): Move | null {
-        // 1. ПРИОРИТЕТ: ВЗЯТИЕ.
+        // === УРОВЕНЬ 1: АНАЛИЗ ВЗЯТИЙ (ПРИНЦИП НАИБОЛЬШЕГО УРОНА) ===
         const possibleCaptures = rules.findPossibleCaptures(this.color);
         if (possibleCaptures.length > 0) {
             let bestCaptureChain: Move[] = [];
@@ -24,13 +24,9 @@ export class Bot {
 
             for (const startCapture of possibleCaptures) {
                 let currentScore = 0;
-                const capturedPieces: Piece[] = [];
                 const chain = this.findLongestCaptureChain(startCapture, board, rules, (capturedPiece) => {
-                    capturedPieces.push(capturedPiece);
+                    currentScore += capturedPiece.isKing ? 5 : 1; // Очки за срубленную фигуру
                 });
-
-                // Оцениваем всю цепочку
-                currentScore = capturedPieces.reduce((acc, piece) => acc + (piece.isKing ? 5 : 1), 0);
 
                 if (currentScore > maxCaptureScore) {
                     maxCaptureScore = currentScore;
@@ -40,7 +36,7 @@ export class Bot {
             return bestCaptureChain[0];
         }
 
-        // 2. ЕСЛИ ВЗЯТИЙ НЕТ: Анализ обычных ходов.
+        // === УРОВЕНЬ 2: АНАЛИЗ ОБЫЧНЫХ ХОДОВ (ЕСЛИ НЕТ ВЗЯТИЙ) ===
         const possibleMoves = rules.findPossibleMoves(this.color);
         if (possibleMoves.length === 0) {
             return null;
@@ -49,25 +45,42 @@ export class Bot {
         const opponentColor = this.color === 'WHITE' ? 'BLACK' : 'WHITE';
         const scoredMoves: { move: Move, score: number }[] = [];
 
+        // Считаем ходы противника ДО нашего хода для сравнения
+        const opponentMovesBefore = rules.findPossibleMoves(opponentColor).length + rules.findPossibleCaptures(opponentColor).length;
+
         for (const move of possibleMoves) {
             let score = 0;
             const pieceToMove = board.getPieceAt(move.from);
             if (!pieceToMove) continue;
 
-            // --- Оцениваем каждый ход ---
+            // --- ОЦЕНИВАЕМ КАЖДЫЙ ХОД ---
+            const boardAfterMyMove = cloneBoard(board);
+            boardAfterMyMove.movePiece(move.from, move.to);
+            const rulesAfterMyMove = new GameRules(boardAfterMyMove);
 
-            // a) Приоритет на проход в дамки
+            // --- Группа 1: Атакующие/Стратегические бонусы ---
+            // a) Проход в дамки (высший приоритет)
             const promotionRow = this.color === 'WHITE' ? 0 : 7;
             if (!pieceToMove.isKing && move.to.row === promotionRow) {
                 score += 100;
             }
 
-            // Симулируем доску ПОСЛЕ нашего хода
-            const boardAfterMyMove = cloneBoard(board);
-            boardAfterMyMove.movePiece(move.from, move.to);
-            const rulesAfterMyMove = new GameRules(boardAfterMyMove);
+            // b) Атака дамкой (создание угрозы)
+            if (pieceToMove.isKing) {
+                const newCapturesForKing = rulesAfterMyMove.getCapturesForPiece(move.to);
+                if (newCapturesForKing.length > 0) {
+                    score += 15;
+                }
+            }
 
-            // b) Штраф за ход под бой (ставим шашку под удар)
+            // c) Ограничение подвижности противника
+            const opponentMovesAfter = rulesAfterMyMove.findPossibleMoves(opponentColor).length + rulesAfterMyMove.findPossibleCaptures(opponentColor).length;
+            if (opponentMovesAfter < opponentMovesBefore) {
+                score += (opponentMovesBefore - opponentMovesAfter) * 5;
+            }
+
+            // --- Группа 2: Защитные/Позиционные бонусы и штрафы ---
+            // d) Штраф за ход под бой (Принцип наименьших потерь)
             const opponentCapturesNow = rulesAfterMyMove.findPossibleCaptures(opponentColor);
             const isMovePuttingPieceInDanger = opponentCapturesNow.some(capture =>
                 capture.captured.row === move.to.row && capture.captured.col === move.to.col
@@ -76,27 +89,44 @@ export class Bot {
                 score -= pieceToMove.isKing ? 200 : 50;
             }
 
-            // --- НОВОЕ ПРАВИЛО ---
-            // c) Штраф за "вскрытие" другой шашки (открываем свою шашку под бой)
-            const opponentCapturesBeforeMove = rules.findPossibleCaptures(opponentColor);
+            // e) Штраф за "вскрытие" другой шашки
+            const opponentCapturesBefore = rules.findPossibleCaptures(opponentColor);
             const newDangers = opponentCapturesNow.filter(newCapture =>
-                !opponentCapturesBeforeMove.some(oldCapture =>
-                    oldCapture.from.row === newCapture.from.row && oldCapture.from.col === newCapture.from.col &&
-                    oldCapture.to.row === newCapture.to.row && oldCapture.to.col === newCapture.to.col
+                !opponentCapturesBefore.some(oldCapture =>
+                    oldCapture.from.row === newCapture.from.row && oldCapture.from.col === newCapture.from.col
                 )
             );
-
             if (newDangers.length > 0) {
                 for (const danger of newDangers) {
-                    const endangeredPiece = board.getPieceAt(danger.captured);
-                    if (endangeredPiece) {
-                        // Штрафуем за каждую новую шашку, которую мы подставили
-                        score -= endangeredPiece.isKing ? 150 : 40;
+                    // Исключаем опасность для той шашки, которой мы только что походили
+                    if (danger.captured.row !== move.to.row || danger.captured.col !== move.to.col) {
+                        const endangeredPiece = board.getPieceAt(danger.captured);
+                        if (endangeredPiece) {
+                            score -= endangeredPiece.isKing ? 150 : 40;
+                        }
                     }
                 }
             }
 
-            // d) Бонус за ход в центр
+            // f) Бонус за построение "стены" на своей стороне
+            const defensiveWallRow = this.color === 'WHITE' ? 7 : 0;
+            if (move.to.row === defensiveWallRow && !pieceToMove.isKing) {
+                score += 3;
+            }
+
+            // g) Штраф за уход с "безопасной" задней линии
+            if (move.from.row === defensiveWallRow && !pieceToMove.isKing) {
+                score -= 5;
+            }
+
+            // h) Штраф за "разбивание пары"
+            const isPairedBefore = this.isPaired(move.from, board);
+            const isPairedAfter = this.isPaired(move.to, boardAfterMyMove);
+            if (isPairedBefore && !isPairedAfter) {
+                score -= 3;
+            }
+
+            // i) Бонус за ход в центр
             if (move.to.col >= 2 && move.to.col <= 5) {
                 score += 1;
             }
@@ -111,6 +141,18 @@ export class Bot {
         const randomIndex = Math.floor(Math.random() * bestMoves.length);
 
         return bestMoves[randomIndex].move;
+    }
+
+    private isPaired(pos: Position, board: Board): boolean {
+        const piece = board.getPieceAt(pos);
+        if (!piece) return false;
+        // Проверяем две диагональные клетки сзади
+        const backRow = pos.row + (piece.color === 'WHITE' ? 1 : -1);
+        const pos1 = { row: backRow, col: pos.col - 1 };
+        const pos2 = { row: backRow, col: pos.col + 1 };
+        const neighbor1 = board.getPieceAt(pos1);
+        const neighbor2 = board.getPieceAt(pos2);
+        return (neighbor1?.color === piece.color) || (neighbor2?.color === piece.color);
     }
 
     private findLongestCaptureChain(
@@ -138,7 +180,7 @@ export class Bot {
         let bestSubChain: Move[] = [];
         for (const nextCapture of nextCaptures) {
             const subChain = this.findLongestCaptureChain(nextCapture, tempBoard, tempRules, onCapture);
-            if (subChain.length > bestSubChain.length) {
+            if (subChain.length >= bestSubChain.length) { // >= для выбора более ценной цепочки при равной длине
                 bestSubChain = subChain;
             }
         }
