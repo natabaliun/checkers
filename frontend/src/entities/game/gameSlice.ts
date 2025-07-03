@@ -3,7 +3,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 type PlayerColor = 'WHITE' | 'BLACK';
-// Добавляем все возможные статусы
 type GameStatus = 'IDLE' | 'WAITING' | 'PLAYING' | 'FINISHED';
 
 interface GameState {
@@ -13,42 +12,37 @@ interface GameState {
     players: { [color in PlayerColor]?: string };
     playerColor: PlayerColor | null;
     status: GameStatus;
+    moveHistory: string[]; // <-- Новое поле
+    result: any | null;
 }
 
 const initialState: GameState = {
     id: null,
-    fen: 'b1b1b1b1/1b1b1b1b/b1b1b1b1/8/8/w1w1w1w1/1w1w1w1w/w1w1w1w1',
+    fen: '1b1b1b1b/b1b1b1b1/1b1b1b1b/8/8/w1w1w1w1/1w1w1w1w/w1w1w1w1',
     turn: 'WHITE',
     players: {},
     playerColor: null,
-    status: 'IDLE', // Начальное состояние - IDLE
+    status: 'IDLE',
+    moveHistory: [], // <-- Начальное значение
+    result: null,
 };
 
 const gameSlice = createSlice({
     name: 'game',
     initialState,
     reducers: {
-        // Устанавливает полное состояние игры
-        setGameState(state, action: PayloadAction<any>) {
-            // action.payload приходит с сервера. Мы полностью доверяем ему.
-            // И просто заменяем наш стейт на то, что пришло.
+        setGameState(state, action: PayloadAction<Partial<GameState>>) {
             const serverState = action.payload;
-
-            // Важно: мы не делаем { ...state, ...serverState },
-            // потому что это может оставить "хвосты" от предыдущей игры.
-            // Мы полностью заменяем состояние данными с сервера.
-            state.id = serverState.id;
-            state.fen = serverState.fen;
-            state.turn = serverState.turn;
-            state.players = serverState.players;
-            state.playerColor = serverState.playerColor; // Сервер теперь тоже вычисляет это
-            state.status = serverState.status; // Это ключевое обновление!
+            state.id = serverState.id ?? state.id;
+            state.fen = serverState.fen ?? state.fen;
+            state.turn = serverState.turn ?? state.turn;
+            state.players = serverState.players ?? state.players;
+            state.playerColor = serverState.playerColor ?? state.playerColor;
+            state.status = serverState.status ?? state.status;
+            state.moveHistory = serverState.moveHistory ?? state.moveHistory;
+            state.result = serverState.result ?? state.result;
         },
-        // Сброс к начальному состоянию
-        resetGameState() {
-            // Возвращаем initialState, чтобы очистить все данные об игре
-            return initialState;
-        }
+        resetGameState: () => initialState,
     },
 });
 

@@ -2,49 +2,31 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppSelector, useAppDispatch } from '../shared/hooks/redux';
+import { useAppSelector } from '../shared/hooks/redux';
 import { socketService } from '../shared/api/socket';
-import { setGameState } from '../entities/game/gameSlice';
 import commonStyles from '../shared/ui/Common.module.scss';
 import styles from './LobbyPage.module.scss';
 
 export const LobbyPage = () => {
-    const { user } = useAppSelector(state => state.user);
+    const { user, isSocketConnected } = useAppSelector(state => state.user);
     const [games, setGames] = useState<any[]>([]);
-    const [isConnected, setIsConnected] = useState(false);
     const navigate = useNavigate();
-    const dispatch = useAppDispatch();
 
     useEffect(() => {
         if (!user) return;
 
-        socketService.connect(user.id);
-
-        const handleConnect = () => setIsConnected(true);
-        const handleDisconnect = () => setIsConnected(false);
         const handleLobbyUpdate = (gamesList: any[]) => setGames(gamesList);
 
-        const gameSocket = socketService.gameSocket;
-        const lobbySocket = socketService.lobbySocket;
-
-        gameSocket?.on('connect', handleConnect);
-        gameSocket?.on('disconnect', handleDisconnect);
-        lobbySocket?.on('lobby:games_list', handleLobbyUpdate);
-
-        if (gameSocket?.connected) handleConnect();
+        socketService.joinLobby(handleLobbyUpdate);
 
         return () => {
-            gameSocket?.off('connect', handleConnect);
-            gameSocket?.off('disconnect', handleDisconnect);
-            lobbySocket?.off('lobby:games_list', handleLobbyUpdate);
+            socketService.leaveLobby(handleLobbyUpdate);
         };
     }, [user]);
 
     const handleCreateGame = () => {
-        if (!user || !isConnected) return;
-        socketService.createGame(user.id, (gameData) => {
+        socketService.createGame((gameData) => {
             if (gameData && !gameData.error) {
-                dispatch(setGameState(gameData));
                 navigate(`/game/${gameData.id}`);
             } else {
                 alert(`Failed to create game: ${gameData?.error || 'Unknown error'}`);
@@ -53,10 +35,8 @@ export const LobbyPage = () => {
     };
 
     const handleCreatePveGame = (playerColor: 'WHITE' | 'BLACK') => {
-        if (!user || !isConnected) return;
-        socketService.createPveGame(user.id, playerColor, (gameData) => {
+        socketService.createPveGame(playerColor, (gameData) => {
             if (gameData && !gameData.error) {
-                dispatch(setGameState(gameData));
                 navigate(`/game/${gameData.id}`);
             } else {
                 alert(`Failed to create PvE game: ${gameData?.error || 'Unknown error'}`);
@@ -65,7 +45,6 @@ export const LobbyPage = () => {
     };
 
     const handleJoinGame = (gameId: string) => {
-        if (!user || !isConnected) return;
         navigate(`/game/${gameId}`);
     };
 
@@ -74,8 +53,8 @@ export const LobbyPage = () => {
             <h1 className={styles.title}>Игровое Лобби</h1>
             <p className={styles.subtitle}>
                 Состояние подключения:
-                <span className={isConnected ? styles.online : styles.offline}>
-                    {isConnected ? ' Онлайн' : ' Подключение...'}
+                <span className={isSocketConnected ? styles.online : styles.offline}>
+                    {isSocketConnected ? ' Онлайн' : ' Подключение...'}
                 </span>
             </p>
 
@@ -86,14 +65,14 @@ export const LobbyPage = () => {
                         <button
                             onClick={() => handleCreatePveGame('WHITE')}
                             className={commonStyles.button}
-                            disabled={!isConnected}
+                            disabled={!isSocketConnected}
                         >
                             Играть за белых
                         </button>
                         <button
                             onClick={() => handleCreatePveGame('BLACK')}
                             className={`${commonStyles.button} ${commonStyles.buttonSecondary}`}
-                            disabled={!isConnected}
+                            disabled={!isSocketConnected}
                         >
                             Играть за черных
                         </button>
@@ -104,9 +83,9 @@ export const LobbyPage = () => {
                     <button
                         onClick={handleCreateGame}
                         className={commonStyles.button}
-                        disabled={!isConnected}
+                        disabled={!isSocketConnected}
                     >
-                        {isConnected ? 'Создать PvP игру' : 'Подключение...'}
+                        {isSocketConnected ? 'Создать PvP игру' : 'Подключение...'}
                     </button>
                 </div>
             </div>
@@ -122,14 +101,14 @@ export const LobbyPage = () => {
                                     <button
                                         onClick={() => handleJoinGame(game.id)}
                                         className={commonStyles.button}
-                                        disabled={!isConnected}
+                                        disabled={!isSocketConnected}
                                     >
                                         Присоединиться
                                     </button>
                                 </li>
                             ))}
                         </ul>
-                    ) : <p className={styles.noGames}>Нет доступных игр.</p>}
+                    ) : <p className={styles.noGames}>Нет доступных игр для присоединения.</p>}
                 </div>
 
                 <div className={commonStyles.card}>
@@ -148,7 +127,7 @@ export const LobbyPage = () => {
                                 </li>
                             ))}
                         </ul>
-                    ) : <p className={styles.noGames}>Нет идущих партий.</p>}
+                    ) : <p className={styles.noGames}>Нет идущих партий для наблюдения.</p>}
                 </div>
             </div>
         </div>

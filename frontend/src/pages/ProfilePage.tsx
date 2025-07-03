@@ -6,7 +6,9 @@ import { authApi } from '../shared/api/auth';
 import { updateUserProfile, updateAvatar } from '../entities/user/userSlice';
 import commonStyles from '../shared/ui/Common.module.scss';
 import pageStyles from './ProfilePage.module.scss';
-import DefaultAvatar from '../shared/assets/default_avatar.svg'; // <-- ИМПОРТИРУЕМ SVG
+import DefaultAvatar from '../shared/assets/default_avatar.svg';
+import { gameApi } from '../shared/api/game';
+import { Link } from 'react-router-dom';
 
 const ProfilePage = () => {
     const dispatch = useAppDispatch();
@@ -18,6 +20,8 @@ const ProfilePage = () => {
         country: '',
         city: '',
     });
+    const [history, setHistory] = useState<any[]>([]);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(true);
 
     useEffect(() => {
         if (user?.profile) {
@@ -29,6 +33,13 @@ const ProfilePage = () => {
             });
         }
     }, [user]);
+
+    useEffect(() => {
+        gameApi.getHistory()
+            .then(response => setHistory(response.data))
+            .catch(err => console.error("Failed to fetch game history", err))
+            .finally(() => setIsLoadingHistory(false));
+    }, []);
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -65,8 +76,6 @@ const ProfilePage = () => {
     }
 
     const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-
-    // --- НОВАЯ ЛОГИКА ОПРЕДЕЛЕНИЯ URL АВАТАРА ---
     const avatarSrc = user.profile?.avatarUrl
         ? `${API_BASE_URL}${user.profile.avatarUrl}`
         : DefaultAvatar;
@@ -76,11 +85,7 @@ const ProfilePage = () => {
             <aside className={pageStyles.sidebar}>
                 <div className={pageStyles.avatarSection}>
                     <h3>{user.nickname}</h3>
-                    <img
-                        src={avatarSrc}
-                        alt="avatar"
-                        key={user.profile?.avatarUrl} // Ключ для принудительного ререндера
-                    />
+                    <img src={avatarSrc} alt="avatar" key={user.profile?.avatarUrl} />
                     <label htmlFor="avatar-upload" className={commonStyles.button}>
                         Сменить аватар
                     </label>
@@ -94,27 +99,64 @@ const ProfilePage = () => {
                     <p><span>Ничьих:</span> <span>{user.profile?.draws}</span></p>
                 </div>
             </aside>
-            <div className={`${commonStyles.card} ${pageStyles.mainContent}`}>
-                <form className={commonStyles.form} onSubmit={handleProfileSubmit}>
-                    <h2 className={commonStyles.title}>Редактировать профиль</h2>
-                    <div className={commonStyles.formGroup}>
-                        <label>Имя</label>
-                        <input className={commonStyles.input} name="firstName" value={formData.firstName} onChange={handleChange} placeholder="Ваше имя" />
+            <div className={pageStyles.mainContent}>
+                <div className={commonStyles.card}>
+                    <div className={pageStyles.contentBlock}>
+                        <h2 className={commonStyles.title}>Редактировать профиль</h2>
+                        <form className={`${commonStyles.form} ${pageStyles.form}`} onSubmit={handleProfileSubmit}>
+                            <div className={commonStyles.formGroup}>
+                                <label>Имя</label>
+                                <input className={commonStyles.input} name="firstName" value={formData.firstName} onChange={handleChange} placeholder="Ваше имя" />
+                            </div>
+                            <div className={commonStyles.formGroup}>
+                                <label>Фамилия</label>
+                                <input className={commonStyles.input} name="lastName" value={formData.lastName} onChange={handleChange} placeholder="Ваша фамилия" />
+                            </div>
+                            <div className={commonStyles.formGroup}>
+                                <label>Страна</label>
+                                <input className={commonStyles.input} name="country" value={formData.country} onChange={handleChange} placeholder="Ваша страна" />
+                            </div>
+                            <div className={commonStyles.formGroup}>
+                                <label>Город</label>
+                                <input className={commonStyles.input} name="city" value={formData.city} onChange={handleChange} placeholder="Ваш город" />
+                            </div>
+                            <button className={commonStyles.button} type="submit">Сохранить</button>
+                        </form>
                     </div>
-                    <div className={commonStyles.formGroup}>
-                        <label>Фамилия</label>
-                        <input className={commonStyles.input} name="lastName" value={formData.lastName} onChange={handleChange} placeholder="Ваша фамилия" />
+
+                    <div className={pageStyles.contentBlock}>
+                        <h2 className={commonStyles.title}>История игр</h2>
+                        {isLoadingHistory ? <p>Загрузка...</p> : (
+                            history.length > 0 ? (
+                                <ul className={pageStyles.historyList}>
+                                    {history.map(game => {
+                                        const isWin = (game.myColor === 'WHITE' && game.result === 'WHITE_WIN') ||
+                                            (game.myColor === 'BLACK' && game.result === 'BLACK_WIN');
+                                        const resultText = game.result === 'DRAW' ? 'Ничья' : (isWin ? 'Победа' : 'Поражение');
+                                        const resultClass = game.result === 'DRAW' ? pageStyles.draw : (isWin ? pageStyles.win : pageStyles.loss);
+
+                                        const durationMs = new Date(game.endedAt).getTime() - new Date(game.startedAt).getTime();
+                                        const minutes = Math.floor(durationMs / 60000);
+                                        const seconds = ((durationMs % 60000) / 1000).toFixed(0).padStart(2, '0');
+
+                                        return (
+                                            <li key={game.id} className={pageStyles.historyItem}>
+                                                <span className={resultClass}>{resultText}</span>
+                                                <div className={pageStyles.opponentInfo}>
+                                                    vs <strong>{game.opponentNickname}</strong>
+                                                    <small>({game.myColor})</small>
+                                                </div>
+                                                <span className={pageStyles.duration}>{minutes}:{seconds}</span>
+                                                <span className={pageStyles.date}>{new Date(game.endedAt).toLocaleDateString()}</span>
+                                                <Link to={`/analysis/${game.id}`} className={pageStyles.analysisLink}>Анализ</Link>
+                                            </li>
+                                        )
+                                    })}
+                                </ul>
+                            ) : <p>Сыгранных партий пока нет.</p>
+                        )}
                     </div>
-                    <div className={commonStyles.formGroup}>
-                        <label>Страна</label>
-                        <input className={commonStyles.input} name="country" value={formData.country} onChange={handleChange} placeholder="Ваша страна" />
-                    </div>
-                    <div className={commonStyles.formGroup}>
-                        <label>Город</label>
-                        <input className={commonStyles.input} name="city" value={formData.city} onChange={handleChange} placeholder="Ваш город" />
-                    </div>
-                    <button className={commonStyles.button} type="submit">Сохранить</button>
-                </form>
+                </div>
             </div>
         </div>
     );

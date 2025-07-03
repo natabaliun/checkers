@@ -9,6 +9,7 @@ interface UserState {
     token: string | null;
     isAuthenticated: boolean;
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
+    isSocketConnected: boolean; // <-- НОВОЕ ПОЛЕ
 }
 
 const initialState: UserState = {
@@ -16,9 +17,9 @@ const initialState: UserState = {
     token: localStorage.getItem('token'),
     isAuthenticated: false,
     status: 'idle',
+    isSocketConnected: false, // <-- Начальное значение
 };
 
-// Асинхронный Thunk для проверки токена при загрузке приложения
 export const checkAuth = createAsyncThunk('user/checkAuth', async (_, { rejectWithValue }) => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -47,6 +48,7 @@ const userSlice = createSlice({
             state.isAuthenticated = false;
             state.token = null;
             state.user = null;
+            state.isSocketConnected = false; // При выходе сбрасываем статус сокета
             localStorage.removeItem('token');
         },
         updateUserProfile(state, action: PayloadAction<UserProfile>) {
@@ -58,6 +60,10 @@ const userSlice = createSlice({
             if (state.user?.profile) {
                 state.user.profile.avatarUrl = action.payload;
             }
+        },
+        // --- НОВЫЙ РЕДЬЮСЕР ---
+        setSocketConnected(state, action: PayloadAction<boolean>) {
+            state.isSocketConnected = action.payload;
         }
     },
     extraReducers: (builder) => {
@@ -80,5 +86,5 @@ const userSlice = createSlice({
     }
 });
 
-export const { loginSuccess, logout, updateUserProfile, updateAvatar } = userSlice.actions;
+export const { loginSuccess, logout, updateUserProfile, updateAvatar, setSocketConnected } = userSlice.actions;
 export default userSlice.reducer;

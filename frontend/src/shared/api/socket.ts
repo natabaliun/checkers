@@ -2,73 +2,127 @@
 
 import { io, Socket } from 'socket.io-client';
 import { store } from '../../app/store';
-import { setGameState } from '../../entities/game/gameSlice';
+import { resetGameState, setGameState } from '../../entities/game/gameSlice';
+import { setSocketConnected } from '../../entities/user/userSlice';
 
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';
 
+interface SocketAuth {
+    userId: string;
+}
+
+// Указываем, что в ServerEvents и ClientEvents могут быть любые события с любыми данными.
+// Это отключает строгую проверку типов для .on и .emit, что упрощает жизнь в этом файле.
+type GameSocket = Socket<any, any> & { auth: SocketAuth };
+
 class SocketService {
     public lobbySocket: Socket | null = null;
-    public gameSocket: Socket | null = null;
+    public gameSocket: GameSocket | null = null;
 
-    connect(userId: string) {
-        if (!userId) {
-            console.error("SocketService: Cannot connect without userId.");
-            return;
-        }
+    public init(userId: string): void {
+        if (!userId || this.gameSocket) return;
 
-        if (!this.lobbySocket || !this.lobbySocket.connected) {
-            this.lobbySocket = io(`${SOCKET_URL}/lobby`);
-            this.lobbySocket.on('connect', () => console.log('Lobby socket connected:', this.lobbySocket?.id));
-        }
+        this.lobbySocket = io(`${SOCKET_URL}/lobby`);
+        this.lobbySocket.on('connect', () => console.log('Lobby socket connected'));
 
-        if (!this.gameSocket || !this.gameSocket.connected) {
-            this.gameSocket = io(`${SOCKET_URL}/game`, {
-                query: { userId },
-                reconnection: false
-            });
-            this.gameSocket.on('connect', () => console.log(`Game socket connected: ${this.gameSocket?.id} for user ${userId}`));
-            this.gameSocket.on('error', (data) => alert(`Error: ${data.message || data}`));
+        this.gameSocket = io(`${SOCKET_URL}/game`, {
+            auth: { userId },
+            autoConnect: false,
+        }) as GameSocket;
+
+        this.gameSocket.on('connect', () => {
+            console.log(`Game socket connected: ${this.gameSocket?.id}`);
+            store.dispatch(setSocketConnected(true));
+        });
+
+        this.gameSocket.on('disconnect', () => {
+            console.log('Game socket disconnected');
+            store.dispatch(setSocketConnected(false));
+        });
+
+        // Указываем тип для data, чтобы ESLint не ругался
+        this.gameSocket.on('error', (data: any) => alert(`Socket Error: ${data.message || data}`));
+    }
+
+    private ensureConnected(socket: Socket | null): void {
+        if (socket && !socket.connected) {
+            socket.connect();
         }
     }
 
+    public onGameUpdate(handler: (data: any) => void) {
+        this.gameSocket?.on('game:state_update', handler);
+        this.gameSocket?.on('game:reconnect', handler);
+    }
+    public offGameUpdate(handler: (data: any) => void) {
+        this.gameSocket?.off('game:state_update', handler);
+        this.gameSocket?.off('game:reconnect', handler);
+    }
+    public onGameEnded(handler: (data: any) => void) {
+        this.gameSocket?.on('game:ended', handler);
+    }
+    public offGameEnded(handler: (data: any) => void) {
+        this.gameSocket?.off('game:ended', handler);
+    }
+    public joinLobby(callback: (games: any[]) => void) {
+        this.ensureConnected(this.lobbySocket);
+        this.lobbySocket?.on('lobby:games_list', callback);
+    }
+    public leaveLobby(callback: (games: any[]) => void) {
+        this.lobbySocket?.off('lobby:games_list', callback);
+    }
+
+    // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+    // Добавляем тип для `data`, чтобы TypeScript был доволен
     private emitSafely(socket: Socket | null, event: string, data: any, callback?: (response: any) => void) {
         if (socket && socket.connected) {
             socket.emit(event, data, callback);
         } else {
             console.error(`Cannot emit event '${event}': socket is not connected.`);
-            alert("Connection is not ready. Please refresh the page or wait a moment.");
+            // alert("Connection is not ready. Please refresh the page or wait a moment.");
         }
     }
 
-    createGame(userId: string, callback: (data: any) => void) {
-        this.emitSafely(this.gameSocket, 'game:create', { userId }, callback);
+    public joinGame(gameId: string): void {
+        if (!this.gameSocket) return console.error("Game socket not initialized.");
+        this.ensureConnected(this.gameSocket);
+        // Для emit'ов без колбэка просто вызываем их
+        this.gameSocket.emit('game:join', { gameId, userId: this.gameSocket.auth.userId });
     }
 
-    createPveGame(userId: string, playerColor: 'WHITE' | 'BLACK', callback: (data: any) => void) {
-        this.emitSafely(this.gameSocket, 'game:create_pve', { userId, playerColor }, callback);
+    public leaveGame(gameId: string): void {
+        if (this.gameSocket) {
+            console.log(`Leaving game ${gameId}`);
+        }
+        store.dispatch(resetGameState());
     }
 
-    joinGame(gameId: string, userId: string, callback: (data: any) => void) {
-        this.emitSafely(this.gameSocket, 'game:join', { gameId, userId }, callback);
+    public createGame(callback: (data: any) => void) {
+        if (!this.gameSocket?.connected) return alert("Not connected to game server!");
+        this.gameSocket.emit('game:create', { userId: this.gameSocket.auth.userId }, callback);
     }
 
-    sendMove(gameId: string, userId: string, move: any) {
-        this.emitSafely(this.gameSocket, 'game:move', { gameId, userId, move });
+    public createPveGame(playerColor: 'WHITE' | 'BLACK', callback: (data: any) => void) {
+        if (!this.gameSocket?.connected) return alert("Not connected to game server!");
+        this.gameSocket.emit('game:create_pve', { userId: this.gameSocket.auth.userId, playerColor }, callback);
     }
 
-    onLobbyUpdate(callback: (games: any[]) => void) {
-        this.lobbySocket?.on('lobby:games_list', callback);
+    public sendMove(gameId: string, move: any) {
+        if (!this.gameSocket?.connected) return;
+        this.gameSocket.emit('game:move', { gameId, userId: this.gameSocket.auth.userId, move });
     }
 
-    offLobbyUpdate() {
-        this.lobbySocket?.off('lobby:games_list');
+    public resign(gameId: string) {
+        if(!this.gameSocket?.connected) return;
+        this.gameSocket.emit('game:resign', { gameId, userId: this.gameSocket.auth.userId });
     }
 
-    disconnect() {
+    public disconnect() {
         this.lobbySocket?.disconnect();
         this.gameSocket?.disconnect();
         this.lobbySocket = null;
         this.gameSocket = null;
+        store.dispatch(setSocketConnected(false));
     }
 }
 

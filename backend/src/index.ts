@@ -8,40 +8,37 @@ import passport from 'passport';
 import { config } from './shared/config';
 import { authRoutes } from './infrastructure/http/routes/auth.routes';
 import { userRoutes } from './infrastructure/http/routes/user.routes';
-import './infrastructure/http/middlewares/auth.middleware'; // для инициализации passport
+import { gameRoutes } from './infrastructure/http/routes/game.routes'; // <-- Импорт
 import { setupGameGateway } from './infrastructure/websocket/game.gateway';
-
+import './infrastructure/http/middlewares/auth.middleware';
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: "http://localhost:3000", // URL вашего фронтенда
+        origin: "http://localhost:3000",
         methods: ["GET", "POST"]
     }
 });
 
-app.use(cors()); // Включаем CORS для всех запросов
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(passport.initialize());
 
-// Раздача статичных файлов (аватаров)
 app.use('/uploads', express.static('uploads'));
 
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Подключаем роуты
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/games', gameRoutes); // <-- Подключение
 
-// Подключение Gateway
 setupGameGateway(io);
 
-// Вместо app.listen используем server.listen
 server.listen(config.port, () => {
     console.log(`Backend server with WebSocket is running on http://localhost:${config.port}`);
 });

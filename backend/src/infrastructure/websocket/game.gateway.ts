@@ -21,15 +21,15 @@ export function setupGameGateway(io: Server) {
 
         roomSockets.fetchSockets().then(sockets => {
             sockets.forEach(socket => {
-                const userId = socket.handshake.query.userId as string;
+                const userId = socket.handshake.auth.userId as string;
                 socket.emit('game:state_update', game.getState(userId));
             });
-        }).catch(err => console.error("Error fetching sockets:", err));
+        }).catch(err => console.error("Error fetching sockets for broadcast:", err));
     };
 
     const handleBotTurn = async (game: GameInstance) => {
-        const humanPlayer = game.players.WHITE !== 'bot-player' ? game.players.WHITE : game.players.BLACK;
-        if (!game.isPve || game.turn !== game.bot?.color || !humanPlayer) {
+        const humanPlayerId = game.players.WHITE !== 'bot-player' ? game.players.WHITE : game.players.BLACK;
+        if (!game.isPve || game.turn !== game.bot?.color || !humanPlayerId) {
             return;
         }
 
@@ -41,7 +41,7 @@ export function setupGameGateway(io: Server) {
                 game.status = 'FINISHED';
                 game.result = { winner: game.bot.color === 'WHITE' ? 'BLACK' : 'WHITE', reason: 'NO_MOVES' };
                 broadcastGameState(game.id);
-                gameNsp.to(game.id).emit('game:ended', game.getState(humanPlayer));
+                gameNsp.to(game.id).emit('game:ended', game.getState(humanPlayerId));
                 await gameManager.finishGame(game.id);
                 break;
             }
@@ -50,7 +50,7 @@ export function setupGameGateway(io: Server) {
                 const isFinished = game.makeMove('bot-player', botMove);
                 broadcastGameState(game.id);
                 if (isFinished) {
-                    gameNsp.to(game.id).emit('game:ended', game.getState(humanPlayer));
+                    gameNsp.to(game.id).emit('game:ended', game.getState(humanPlayerId));
                     await gameManager.finishGame(game.id);
                     break;
                 }
@@ -68,12 +68,18 @@ export function setupGameGateway(io: Server) {
     });
 
     gameNsp.on('connection', (socket: Socket) => {
-        const userId = socket.handshake.query.userId as string;
+        console.log(`GATEWAY: New connection attempt to /game namespace. Socket ID: ${socket.id}`);
+        // --- ЧИТАЕМ ИЗ 'auth' ВМЕСТО 'query' ---
+        const userId = socket.handshake.auth.userId as string;
+        console.log('GATEWAY: Handshake auth object received:', socket.handshake.auth);
+
         if (!userId) {
+            console.error(`GATEWAY: Connection rejected for socket ${socket.id}. Reason: No userId in auth object.`);
             socket.disconnect();
             return;
         }
-        console.log(`Socket connected to game namespace: ${socket.id}, User: ${userId}`);
+
+        console.log(`GATEWAY: Connection successful. User ID found: ${userId}`);
 
         const activeGame = gameManager.getGameByUserId(userId);
         if (activeGame) {

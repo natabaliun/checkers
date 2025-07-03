@@ -1,9 +1,10 @@
 // Файл: frontend/src/app/App.tsx
 
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../shared/hooks/redux';
 import { checkAuth, logout } from '../entities/user/userSlice';
+import { socketService } from '../shared/api/socket';
 import { ProtectedRoute } from './providers/ProtectedRoute';
 import { LobbyPage } from '../pages/LobbyPage';
 import LoginPage from '../pages/LoginPage';
@@ -13,7 +14,6 @@ import { GamePage } from '../pages/GamePage';
 import styles from './App.module.scss';
 import commonStyles from '../shared/ui/Common.module.scss';
 import { ReturnToGame } from '../features/auth/ReturnToGame';
-
 
 function App() {
     const dispatch = useAppDispatch();
@@ -25,6 +25,19 @@ function App() {
             dispatch(checkAuth());
         }
     }, [dispatch]);
+
+    // --- ЭФФЕКТ ДЛЯ ИНИЦИАЛИЗАЦИИ И ОТКЛЮЧЕНИЯ СОКЕТА ---
+    useEffect(() => {
+        // Как только у нас появляется пользователь, мы инициализируем сокет-сервис
+        if (user && isAuthenticated) {
+            console.log("APP: User is authenticated, initializing socket service.");
+            socketService.init(user.id);
+        } else {
+            // Если пользователь выходит из системы или его нет, отключаемся
+            socketService.disconnect();
+        }
+    }, [user, isAuthenticated]);
+
 
     const handleLogout = () => {
         dispatch(logout());

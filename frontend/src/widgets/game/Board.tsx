@@ -29,36 +29,29 @@ const parseFen = (fen: string): (string | null)[][] => {
 export const Board = () => {
     const gameState = useAppSelector(state => state.game);
     const { fen, turn, playerColor } = gameState;
-    const { user } = useAppSelector(state => state.user);
     const boardState = parseFen(fen);
 
     const [selectedPiece, setSelectedPiece] = useState<Position | null>(null);
 
     const handleCellClick = (row: number, col: number) => {
-        // 1. Проверяем, наш ли сейчас ход
         if (playerColor !== turn) {
-            console.log(`Cannot move. My color: ${playerColor}, Turn: ${turn}`);
             return;
         }
 
         const pieceChar = boardState[row][col];
 
-        // 2. Если уже есть выделенная шашка, пытаемся сделать ход
         if (selectedPiece) {
             const move = { from: selectedPiece, to: { row, col } };
 
-            // Убеждаемся, что у нас есть все данные для отправки хода
-            if (user && gameState.id) {
-                socketService.sendMove(gameState.id, user.id, move);
+            if (gameState.id) {
+                // --- ИСПРАВЛЕНИЕ ЗДЕСЬ: убираем лишний аргумент `user.id` ---
+                socketService.sendMove(gameState.id, move);
             }
 
-            // Сбрасываем выделение после попытки хода
             setSelectedPiece(null);
         } else {
-            // 3. Если выделенной шашки нет, пытаемся выделить новую
             if (pieceChar) {
                 const pieceColor = (pieceChar === 'w' || pieceChar === 'W') ? 'WHITE' : 'BLACK';
-                // Выделяем, только если это наша шашка
                 if (pieceColor === playerColor) {
                     setSelectedPiece({ row, col });
                 }

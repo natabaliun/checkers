@@ -3,10 +3,10 @@
 import { Board } from '../../domain/game/Board';
 import { GameRules } from '../../domain/game/GameRules';
 import { PlayerColor, Position, Move } from '../../domain/game/types';
-import { Bot } from './Bot'; // Импортируем бота
+import { Bot } from './Bot';
 
 export type GameStatus = 'WAITING' | 'PLAYING' | 'FINISHED';
-export type GameResult = { winner: PlayerColor | 'DRAW', reason: 'NO_MOVES' | 'NO_PIECES' | 'RESIGNATION' };
+export type GameResult = { winner: PlayerColor | 'DRAW', reason: string };
 
 export class GameInstance {
     public board: Board;
@@ -21,8 +21,8 @@ export class GameInstance {
     public result: GameResult | null = null;
     public startedAt: Date = new Date();
 
-    public isPve: boolean = false; // Флаг игры против компьютера
-    public bot: Bot | null = null;   // Инстанс бота
+    public isPve: boolean = false;
+    public bot: Bot | null = null;
 
     constructor(public id: string, creatorId: string) {
         this.board = new Board();
@@ -69,14 +69,10 @@ export class GameInstance {
 
     public makeMove(playerId: string, move: Move): boolean {
         const playerColor = this.playerColors[playerId];
-        if (this.turn !== playerColor) {
-            throw new Error("Not your turn");
-        }
+        if (this.turn !== playerColor) throw new Error("Not your turn");
 
         const validationResult = this.rules.isValidMove(move, playerColor);
-        if (!validationResult.valid) {
-            throw new Error("Invalid move");
-        }
+        if (!validationResult.valid) throw new Error("Invalid move");
 
         if (validationResult.capture) {
             this.board.removePieceAt(validationResult.capture.captured);
@@ -88,9 +84,7 @@ export class GameInstance {
         const pieceAfterMove = this.board.getPieceAt(move.to);
         if (validationResult.capture && pieceAfterMove) {
             const nextCaptures = this.rules.getCapturesForPiece(move.to);
-            if (nextCaptures.length > 0) {
-                return false;
-            }
+            if (nextCaptures.length > 0) return false;
         }
 
         this.turn = this.turn === 'WHITE' ? 'BLACK' : 'WHITE';
@@ -115,9 +109,7 @@ export class GameInstance {
 
     public resign(playerId: string): boolean {
         const playerColor = this.playerColors[playerId];
-        if (!playerColor || this.status !== 'PLAYING') {
-            return false;
-        }
+        if (!playerColor || this.status !== 'PLAYING') return false;
 
         this.status = 'FINISHED';
         const winner = playerColor === 'WHITE' ? 'BLACK' : 'WHITE';
@@ -138,6 +130,19 @@ export class GameInstance {
             players: this.players,
             playerColor: getPlayerColor(userId),
             result: this.result,
+            // --- НОВОЕ ПОЛЕ ---
+            moveHistory: this.moveHistory.map(move => this.moveToStr(move)),
         };
+    }
+
+    // Вспомогательный метод для конвертации хода в строку
+    private moveToStr(move: Move): string {
+        return `${this.posToString(move.from)}-${this.posToString(move.to)}`;
+    }
+
+    // Вспомогательный метод для конвертации позиции в строку (e.g., a1, h8)
+    private posToString(pos: Position): string {
+        const files = 'abcdefgh';
+        return `${files[pos.col]}${8 - pos.row}`;
     }
 }

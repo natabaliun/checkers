@@ -1,12 +1,35 @@
 /* Файл: frontend/src/pages/GamePage.module.scss */
 
 .gamePage {
+  padding-top: 1rem;
+  position: relative;
+}
+
+.gameLayout {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: 2rem;
+  align-items: flex-start; /* Изменено для лучшего выравнивания */
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.historyPanel {
+  position: sticky;
+  top: 90px; /* 70px (высота хедера) + 20px отступ */
+
+  @media (max-width: 1024px) {
+    display: none; /* Скрываем историю на маленьких экранах для простоты */
+  }
+}
+
+.mainPanel {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1rem;
-  padding: 1rem 0;
-  position: relative;
 }
 
 .playersContainer {
@@ -65,7 +88,7 @@
 }
 
 .gameOverPopup {
-  position: absolute;
+  position: fixed; /* Изменено на fixed для перекрытия всей страницы */
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -74,7 +97,7 @@
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   text-align: center;
-  z-index: 100;
+  z-index: 2000; /* Выше хедера */
   border-top: 5px solid var(--primary-color);
 
   h2 {
