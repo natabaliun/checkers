@@ -2,10 +2,12 @@
 
 import { configureStore } from '@reduxjs/toolkit';
 import userReducer from '../entities/user/userSlice';
+import gameSlice from '../entities/game/gameSlice';
 
 export const store = configureStore({
     reducer: {
         user: userReducer,
+        game: gameSlice,
     },
 });
 

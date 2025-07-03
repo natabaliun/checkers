@@ -9,6 +9,7 @@ import HomePage from '../pages/HomePage';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 import ProfilePage from '../pages/ProfilePage';
+import GamePage from '../pages/GamePage';
 import styles from './App.module.scss'; // Импортируем стили
 
 function App() {
@@ -36,6 +37,7 @@ function App() {
                     {isAuthenticated ? (
                         <>
                             <Link to="/profile" className={styles.navLink}>{user?.nickname}</Link>
+                            <Link to="/game" className={styles.navLink}>Game</Link>
                             <button onClick={handleLogout} className={styles.navButton}>Logout</button>
                         </>
                     ) : (
@@ -56,6 +58,7 @@ function App() {
 
                     <Route element={<ProtectedRoute />}>
                         <Route path="/profile" element={<ProfilePage />} />
+                        <Route path="/game" element={<GamePage />} />
                     </Route>
                 </Routes>
             </main>

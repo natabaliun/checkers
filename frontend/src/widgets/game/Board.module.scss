@@ -1,0 +1,43 @@
+/* Файл: frontend/src/widgets/game/Board.module.scss */
+.board {
+  width: 600px;
+  height: 600px;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  border: 2px solid #5a3a22;
+}
+
+.cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  &.light { background-color: #f0d9b5; }
+  &.dark { background-color: #b58863; }
+  &.selected { background-color: #6a9c5a; }
+  &.possibleMove {
+    background-color: rgba(106, 156, 90, 0.5);
+    cursor: pointer;
+  }
+}
+
+.piece {
+  width: 80%;
+  height: 80%;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: gold;
+  font-size: 2rem;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px black;
+
+  &.white { background-color: #f8f8f8; border: 2px solid #555; }
+  &.black { background-color: #333; border: 2px solid #aaa; }
+  &.selected {
+    box-shadow: 0 0 15px 5px #ffeb3b;
+  }
+}
