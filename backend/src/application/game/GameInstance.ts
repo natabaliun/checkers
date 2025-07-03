@@ -2,7 +2,7 @@
 
 import { Board } from '../../domain/game/Board';
 import { GameRules } from '../../domain/game/GameRules';
-import { PlayerColor, Position } from '../../domain/game/types';
+import { PlayerColor, Position, Move } from '../../domain/game/types';
 
 export type GameStatus = 'WAITING' | 'PLAYING' | 'FINISHED';
 
@@ -12,12 +12,10 @@ export class GameInstance {
     public turn: PlayerColor = 'WHITE';
     public status: GameStatus = 'WAITING';
 
-    // Объект с цветами и ID игроков
     public players: { [color in PlayerColor]?: string } = {};
-    // Объект для быстрого поиска цвета по ID игрока
     public playerColors: { [userId: string]: PlayerColor } = {};
-
     public spectators: string[] = [];
+    private moveHistory: Move[] = [];
 
     constructor(public id: string, creatorId: string) {
         this.board = new Board();
@@ -44,16 +42,51 @@ export class GameInstance {
         return 'SPECTATOR';
     }
 
-    public makeMove(from: Position, to: Position) {
-        const isCapture = Math.abs(from.row - to.row) === 2;
-        if (isCapture) {
-            this.board.removePieceAt({
-                row: (from.row + to.row) / 2,
-                col: (from.col + to.col) / 2
-            });
+    /**
+     * Основной метод для выполнения хода с полной проверкой правил.
+     * Выбрасывает ошибку, если ход невалидный.
+     */
+    public makeMove(playerId: string, move: Move): void {
+        const playerColor = this.playerColors[playerId];
+        if (this.turn !== playerColor) {
+            throw new Error("Not your turn");
         }
-        this.board.movePiece(from, to);
+
+        const validationResult = this.rules.isValidMove(move, playerColor);
+        if (!validationResult.valid) {
+            throw new Error("Invalid move");
+        }
+
+        // Если это взятие, удаляем срубленную шашку
+        if (validationResult.capture) {
+            this.board.removePieceAt(validationResult.capture.captured);
+        }
+
+        this.board.movePiece(move.from, move.to);
+        this.moveHistory.push(move);
+
+        // Проверяем, может ли та же шашка совершить еще одно взятие
+        const pieceAfterMove = this.board.getPieceAt(move.to);
+        if (validationResult.capture && pieceAfterMove) {
+            // Ищем новые взятия только с той клетки, куда мы только что походили
+            const nextCaptures = this.rules.getCapturesForPiece(move.to);
+
+            // Если есть еще взятия для этой же шашки, ход не передается
+            if (nextCaptures.length > 0) {
+                return; // Ход остается у того же игрока
+            }
+        }
+
+        // Передаем ход другому игроку
         this.turn = this.turn === 'WHITE' ? 'BLACK' : 'WHITE';
+
+        // TODO: Проверка на конец игры (нет шашек или нет ходов)
+        const opponentColor = this.turn;
+        const opponentHasMoves = this.rules.findPossibleCaptures(opponentColor).length > 0 || this.rules.findPossibleMoves(opponentColor).length > 0;
+        if (!opponentHasMoves || this.board.pieceCounts[opponentColor] === 0) {
+            this.status = 'FINISHED';
+            // TODO: определить победителя
+        }
     }
 
     public getState(userId?: string) {

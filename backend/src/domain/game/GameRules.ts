@@ -10,6 +10,10 @@ export class GameRules {
         this.board = board;
     }
 
+    /**
+     * Находит все возможные взятия для указанного цвета.
+     * Это главный метод для определения обязательных ходов.
+     */
     public findPossibleCaptures(playerColor: PlayerColor): CaptureMove[] {
         const captures: CaptureMove[] = [];
         for (let r = 0; r < 8; r++) {
@@ -23,11 +27,15 @@ export class GameRules {
         return captures;
     }
 
+    /**
+     * Находит все возможные обычные ходы (не взятия).
+     * Возвращает пустой массив, если есть обязательные взятия.
+     */
     public findPossibleMoves(playerColor: PlayerColor): Move[] {
-        // Если есть взятия, то другие ходы невозможны
         if (this.findPossibleCaptures(playerColor).length > 0) {
-            return [];
+            return []; // Если есть взятие, обычные ходы запрещены
         }
+
         const moves: Move[] = [];
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
@@ -40,15 +48,40 @@ export class GameRules {
         return moves;
     }
 
+    /**
+     * Проверяет, является ли конкретный ход (от from до to) валидным для игрока.
+     */
+    public isValidMove(move: Move, playerColor: PlayerColor): { valid: boolean, capture?: CaptureMove } {
+        const piece = this.board.getPieceAt(move.from);
+        if (!piece || piece.color !== playerColor) {
+            return { valid: false }; // Нельзя ходить чужой или пустой шашкой
+        }
+
+        const possibleCaptures = this.findPossibleCaptures(playerColor);
+        if (possibleCaptures.length > 0) {
+            // Если есть обязательные взятия, проверяем, является ли ход одним из них
+            const capture = possibleCaptures.find(c =>
+                this.arePositionsEqual(c.from, move.from) && this.arePositionsEqual(c.to, move.to)
+            );
+            return { valid: !!capture, capture };
+        }
+
+        // Если обязательных взятий нет, проверяем обычные ходы
+        const possibleMoves = this.getMovesForPiece(move.from);
+        const simpleMove = possibleMoves.find(m =>
+            this.arePositionsEqual(m.from, move.from) && this.arePositionsEqual(m.to, move.to)
+        );
+
+        return { valid: !!simpleMove };
+    }
+
     private getMovesForPiece(pos: Position): Move[] {
         const piece = this.board.getPieceAt(pos);
         if (!piece) return [];
 
         if (piece.isKing) {
-            // Логика для дамки (может ходить на любое расстояние по диагонали)
             return this.getKingMoves(pos);
         } else {
-            // Логика для простой шашки
             const dir = piece.color === 'WHITE' ? -1 : 1;
             const moves: Move[] = [];
             const potentialMoves: Position[] = [
@@ -64,7 +97,7 @@ export class GameRules {
         }
     }
 
-    private getCapturesForPiece(pos: Position): CaptureMove[] {
+    getCapturesForPiece(pos: Position): CaptureMove[] {
         const piece = this.board.getPieceAt(pos);
         if (!piece) return [];
 
@@ -88,7 +121,57 @@ export class GameRules {
         }
     }
 
-    // Упрощенная логика для дамки, для MVP
-    private getKingMoves(pos: Position): Move[] { return []; }
-    private getKingCaptures(pos: Position): CaptureMove[] { return []; }
+    private getKingMoves(pos: Position): Move[] {
+        const moves: Move[] = [];
+        const directions = [{r: -1, c: -1}, {r: -1, c: 1}, {r: 1, c: -1}, {r: 1, c: 1}];
+        for (const dir of directions) {
+            let currentPos = { row: pos.row + dir.r, col: pos.col + dir.c };
+            while(!this.board.isOutOfBoard(currentPos)) {
+                if (this.board.getPieceAt(currentPos)) {
+                    break; // Уперлись в фигуру, дальше идти нельзя
+                }
+                moves.push({ from: pos, to: currentPos });
+                currentPos = { row: currentPos.row + dir.r, col: currentPos.col + dir.c };
+            }
+        }
+        return moves;
+    }
+
+    private getKingCaptures(pos: Position): CaptureMove[] {
+        const captures: CaptureMove[] = [];
+        const piece = this.board.getPieceAt(pos);
+        if (!piece) return [];
+
+        const directions = [{r: -1, c: -1}, {r: -1, c: 1}, {r: 1, c: -1}, {r: 1, c: 1}];
+        for (const dir of directions) {
+            let opponentPos: Position | null = null;
+            let currentPos = { row: pos.row + dir.r, col: pos.col + dir.c };
+
+            while(!this.board.isOutOfBoard(currentPos)) {
+                const currentPiece = this.board.getPieceAt(currentPos);
+                if (currentPiece) {
+                    // Если это наша фигура - стоп
+                    if (currentPiece.color === piece.color) break;
+                    // Если это первая вражеская фигура на пути - запоминаем
+                    if (!opponentPos) {
+                        opponentPos = currentPos;
+                    } else {
+                        // Если это вторая вражеская фигура - стоп
+                        break;
+                    }
+                } else {
+                    // Если мы уже перепрыгнули фигуру, то эта клетка - возможное место для приземления
+                    if (opponentPos) {
+                        captures.push({ from: pos, to: currentPos, captured: opponentPos });
+                    }
+                }
+                currentPos = { row: currentPos.row + dir.r, col: currentPos.col + dir.c };
+            }
+        }
+        return captures;
+    }
+
+    private arePositionsEqual(p1: Position, p2: Position): boolean {
+        return p1.row === p2.row && p1.col === p2.col;
+    }
 }

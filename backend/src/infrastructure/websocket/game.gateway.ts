@@ -12,41 +12,30 @@ export function setupGameGateway(io: Server) {
         lobbyNsp.emit('lobby:games_list', games);
     };
 
-    // --- НОВЫЙ ХЕЛПЕР ДЛЯ ПЕРСОНАЛЬНОЙ РАССЫЛКИ СОСТОЯНИЯ ИГРЫ ---
     const broadcastGameState = (gameId: string) => {
         const game = gameManager.getGame(gameId);
         if (!game) return;
 
-        // Получаем все сокеты в игровой комнате
         const roomSockets = gameNsp.in(gameId);
 
-        // Для каждого сокета в комнате отправляем персональное состояние
         roomSockets.fetchSockets().then(sockets => {
             sockets.forEach(socket => {
-                // Извлекаем userId из данных подключения сокета
                 const userId = socket.handshake.query.userId as string;
-                // Отправляем событие с состоянием, вычисленным для этого userId
                 socket.emit('game:state_update', game.getState(userId));
             });
         }).catch(err => console.error("Error fetching sockets:", err));
     };
 
-    // --- Namespace для Лобби ---
+    // Namespace для Лобби
     lobbyNsp.on('connection', async (socket) => {
         console.log(`Socket connected to lobby: ${socket.id}`);
-
         await broadcastLobbyUpdate();
-
-        socket.on('lobby:get_initial_list', async () => {
-            await broadcastLobbyUpdate();
-        });
-
         socket.on('disconnect', () => {
             console.log(`Socket disconnected from lobby: ${socket.id}`);
         });
     });
 
-    // --- Namespace для Игры ---
+    // Namespace для Игры
     gameNsp.on('connection', (socket: Socket) => {
         const userId = socket.handshake.query.userId as string;
         if (!userId) {
@@ -59,7 +48,6 @@ export function setupGameGateway(io: Server) {
         const activeGame = gameManager.getGameByUserId(userId);
         if (activeGame) {
             socket.join(activeGame.id);
-            // При переподключении отправляем персональное состояние
             socket.emit('game:reconnect', activeGame.getState(userId));
         }
 
@@ -67,15 +55,11 @@ export function setupGameGateway(io: Server) {
             try {
                 const newGame = await gameManager.createGame(data.userId);
                 socket.join(newGame.id);
-                if (callback) {
-                    callback(newGame.getState(data.userId));
-                }
+                if (callback) callback(newGame.getState(data.userId));
                 await broadcastLobbyUpdate();
             } catch (error) {
                 console.error("Error creating game:", error);
-                if (callback) {
-                    callback({ error: "Failed to create game on server." });
-                }
+                if (callback) callback({ error: "Failed to create game on server." });
             }
         });
 
@@ -87,37 +71,27 @@ export function setupGameGateway(io: Server) {
             }
 
             socket.join(gameId);
-
-            // --- ИСПОЛЬЗУЕМ НОВЫЙ ХЕЛПЕР ---
             broadcastGameState(gameId);
-
             if(callback) callback(game.getState(userId));
             await broadcastLobbyUpdate();
         });
 
         socket.on('game:move', ({ gameId, userId, move }) => {
             const game = gameManager.getGame(gameId);
-            if (!game) return;
-
-            // Проверяем, является ли отправитель игроком
-            const playerColor = game.playerColors ? game.playerColors[userId] : null;
-            if (!playerColor) {
-                return socket.emit('error', { message: 'You are not a player in this game.' });
-            }
-
-            // Проверяем, его ли сейчас ход
-            if (game.turn !== playerColor) {
-                return socket.emit('error', { message: 'Not your turn' });
+            if (!game) {
+                return socket.emit('error', { message: "Game not found" });
             }
 
             try {
-                // Здесь в будущем будет валидация хода
-                game.makeMove(move.from, move.to);
+                // Вся логика проверки и выполнения хода теперь здесь
+                game.makeMove(userId, move);
 
-                // --- ИСПОЛЬЗУЕМ НОВЫЙ ХЕЛПЕР ---
+                // Если ход был успешным, рассылаем новое состояние
                 broadcastGameState(gameId);
 
             } catch (error: any) {
+                // Если makeMove выбросил ошибку, отправляем ее клиенту
+                console.log(`Invalid move by ${userId} in game ${gameId}: ${error.message}`);
                 socket.emit('error', { message: error.message });
             }
         });
