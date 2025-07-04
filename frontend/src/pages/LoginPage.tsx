@@ -26,9 +26,25 @@ const LoginPage = () => {
         }
     };
 
+    const handleGoogleLogin = () => {
+        // Просто переходим по ссылке на бэкенд, который инициирует процесс OAuth
+        window.location.href = 'http://localhost:3001/api/auth/google';
+    };
+
+
     return (
         <form className={commonStyles.form} onSubmit={handleSubmit}>
             <h2 className={commonStyles.title}>Вход</h2>
+            <button
+                type="button"
+                onClick={handleGoogleLogin}
+                className={`${commonStyles.button} ${commonStyles.buttonSecondary}`}
+                style={{marginBottom: '1rem'}}
+            >
+                Войти через Google
+            </button>
+            <p style={{textAlign: 'center', margin: '-1rem 0 1rem 0', color: '#757575'}}>или</p>
+
             <div className={commonStyles.formGroup}>
                 <label htmlFor="email">Email</label>
                 <input id="email" className={commonStyles.input} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required />

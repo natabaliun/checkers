@@ -12,6 +12,7 @@ import RegisterPage from '../pages/RegisterPage';
 import ProfilePage from '../pages/ProfilePage';
 import { GamePage } from '../pages/GamePage';
 import { AnalysisPage } from '../pages/AnalysisPage';
+import AuthCallbackPage from '../pages/AuthCallbackPage';
 import styles from './App.module.scss';
 import commonStyles from '../shared/ui/Common.module.scss';
 import { ReturnToGame } from '../features/auth/ReturnToGame';
@@ -71,6 +72,7 @@ function App() {
                     <Route path="/" element={<LobbyPage />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
                     <Route element={<ProtectedRoute />}>
                         <Route path="/profile" element={<ProfilePage />} />

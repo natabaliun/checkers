@@ -30,7 +30,8 @@ model User {
   id           String        @id @default(cuid())
   email        String        @unique
   nickname     String        @unique
-  passwordHash String
+  passwordHash String?       // Пароль теперь необязателен
+  googleId     String?       @unique // ID из Google
   role         Role          @default(USER)
   createdAt    DateTime      @default(now())
   profile      UserProfile?
