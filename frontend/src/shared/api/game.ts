@@ -4,7 +4,6 @@ import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
-// Используем тот же инстанс axios, что и для auth, чтобы токены подставлялись
 const apiClient = axios.create({
     baseURL: API_URL,
 });
@@ -19,4 +18,5 @@ apiClient.interceptors.request.use((config) => {
 
 export const gameApi = {
     getHistory: () => apiClient.get('/games/history'),
+    // В будущем: getGameDetails: (id: string) => apiClient.get(`/games/${id}`),
 };

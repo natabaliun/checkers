@@ -32,9 +32,10 @@ export const GamePage = () => {
     const whitePlayer = usePlayerData(allKnownUsers, gameState.players?.WHITE);
     const blackPlayer = usePlayerData(allKnownUsers, gameState.players?.BLACK);
 
-    // Эффект для подписки на события и очистки
+    // Эффект для подписки на события
     useEffect(() => {
         if (!user) return;
+        const gameSocket = socketService.gameSocket;
 
         const handleStateUpdate = (data: any) => dispatch(setGameState(data));
         const handleGameEnded = (data: any) => {
@@ -50,7 +51,6 @@ export const GamePage = () => {
             setGameOverMessage(message);
         };
 
-        // --- ИЗМЕНЕНИЕ ЗДЕСЬ: Используем новые методы для подписки ---
         socketService.onGameUpdate(handleStateUpdate);
         socketService.onGameEnded(handleGameEnded);
 
@@ -60,22 +60,17 @@ export const GamePage = () => {
         };
     }, [user, dispatch, gameState.playerColor]);
 
-    // Эффект для входа в игру и выхода из нее
+    // Эффект для входа и выхода из игры
     useEffect(() => {
         if (gameId && user) {
-            console.log(`GAMEPAGE: Entering game ${gameId}. Calling socketService.joinGame.`);
-            // Сообщаем сервису, что мы в этой игре
             socketService.joinGame(gameId);
         }
-
-        // Функция очистки при уходе со страницы
         return () => {
             if (gameId) {
-                console.log(`GAMEPAGE: Leaving game ${gameId}.`);
                 socketService.leaveGame(gameId);
             }
         };
-    }, [gameId, user]); // Зависит только от gameId и user
+    }, [gameId, user]);
 
     if (gameState.id !== gameId) {
         return <div className={styles.gamePage}><h2>Загрузка игры...</h2></div>;
@@ -97,10 +92,12 @@ export const GamePage = () => {
                     <button className={commonStyles.button} onClick={() => navigate('/')}>В лобби</button>
                 </div>
             )}
+            {/* --- ВОТ ПРАВИЛЬНАЯ СТРУКТУРА, КОТОРАЯ БЫЛА ПОТЕРЯНА --- */}
             <div className={styles.gameLayout}>
                 <div className={styles.historyPanel}>
                     <MoveHistory moves={gameState.moveHistory} />
                 </div>
+
                 <div className={styles.mainPanel}>
                     <div className={styles.playersContainer}>
                         <PlayerCard

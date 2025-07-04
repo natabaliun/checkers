@@ -8,7 +8,7 @@ import passport from 'passport';
 import { config } from './shared/config';
 import { authRoutes } from './infrastructure/http/routes/auth.routes';
 import { userRoutes } from './infrastructure/http/routes/user.routes';
-import { gameRoutes } from './infrastructure/http/routes/game.routes'; // <-- Импорт
+import { gameRoutes } from './infrastructure/http/routes/game.routes';
 import { setupGameGateway } from './infrastructure/websocket/game.gateway';
 import './infrastructure/http/middlewares/auth.middleware';
 
@@ -24,9 +24,7 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
 app.use(passport.initialize());
-
 app.use('/uploads', express.static('uploads'));
 
 app.get('/api/health', (req, res) => {
@@ -35,7 +33,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/games', gameRoutes); // <-- Подключение
+app.use('/api/games', gameRoutes); // <-- Подключили роуты
 
 setupGameGateway(io);
 

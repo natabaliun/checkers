@@ -2,11 +2,13 @@
 
 import { Request, Response } from 'express';
 import { prisma } from '../../database/prisma';
+import { User } from '@prisma/client';
 
 export const gameController = {
     async getHistory(req: Request, res: Response) {
         try {
-            const userId = (req.user as any).id;
+            const user = req.user as User;
+            const userId = user.id;
 
             const games = await prisma.completedGame.findMany({
                 where: {
@@ -20,14 +22,13 @@ export const gameController = {
                 },
             });
 
-            // Собираем ID всех оппонентов
+            // Собираем ID всех оппонентов, чтобы получить их никнеймы одним запросом
             const opponentIds = new Set<string>();
             games.forEach(game => {
                 if (game.playerWhiteId !== userId) opponentIds.add(game.playerWhiteId);
                 if (game.playerBlackId !== userId) opponentIds.add(game.playerBlackId);
             });
 
-            // Получаем никнеймы оппонентов
             const opponents = await prisma.user.findMany({
                 where: { id: { in: Array.from(opponentIds) } },
                 select: { id: true, nickname: true },
@@ -38,7 +39,7 @@ export const gameController = {
             const history = games.map(game => {
                 const myColor = game.playerWhiteId === userId ? 'WHITE' : 'BLACK';
                 const opponentId = myColor === 'WHITE' ? game.playerBlackId : game.playerWhiteId;
-                const opponentNickname = opponentMap.get(opponentId) || 'Unknown Player';
+                const opponentNickname = opponentMap.get(opponentId) || 'Bot'; // Если оппонента нет в БД, это был бот
 
                 return {
                     id: game.id,
@@ -53,7 +54,8 @@ export const gameController = {
             res.json(history);
 
         } catch (error) {
-            res.status(500).json({ message: 'Error fetching game history', error });
+            console.error("Error fetching game history:", error);
+            res.status(500).json({ message: 'Error fetching game history' });
         }
     },
 };

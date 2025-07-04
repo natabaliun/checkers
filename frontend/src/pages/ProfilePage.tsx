@@ -9,6 +9,7 @@ import pageStyles from './ProfilePage.module.scss';
 import DefaultAvatar from '../shared/assets/default_avatar.svg';
 import { gameApi } from '../shared/api/game';
 import { Link } from 'react-router-dom';
+import { GameHistoryItem } from '../entities/game/GameHistoryItem';
 
 const ProfilePage = () => {
     const dispatch = useAppDispatch();
@@ -22,6 +23,13 @@ const ProfilePage = () => {
     });
     const [history, setHistory] = useState<any[]>([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+
+    useEffect(() => {
+        gameApi.getHistory()
+            .then(response => setHistory(response.data))
+            .catch(err => console.error("Failed to fetch game history", err))
+            .finally(() => setIsLoadingHistory(false));
+    }, []);
 
     useEffect(() => {
         if (user?.profile) {
@@ -129,29 +137,9 @@ const ProfilePage = () => {
                         {isLoadingHistory ? <p>Загрузка...</p> : (
                             history.length > 0 ? (
                                 <ul className={pageStyles.historyList}>
-                                    {history.map(game => {
-                                        const isWin = (game.myColor === 'WHITE' && game.result === 'WHITE_WIN') ||
-                                            (game.myColor === 'BLACK' && game.result === 'BLACK_WIN');
-                                        const resultText = game.result === 'DRAW' ? 'Ничья' : (isWin ? 'Победа' : 'Поражение');
-                                        const resultClass = game.result === 'DRAW' ? pageStyles.draw : (isWin ? pageStyles.win : pageStyles.loss);
-
-                                        const durationMs = new Date(game.endedAt).getTime() - new Date(game.startedAt).getTime();
-                                        const minutes = Math.floor(durationMs / 60000);
-                                        const seconds = ((durationMs % 60000) / 1000).toFixed(0).padStart(2, '0');
-
-                                        return (
-                                            <li key={game.id} className={pageStyles.historyItem}>
-                                                <span className={resultClass}>{resultText}</span>
-                                                <div className={pageStyles.opponentInfo}>
-                                                    vs <strong>{game.opponentNickname}</strong>
-                                                    <small>({game.myColor})</small>
-                                                </div>
-                                                <span className={pageStyles.duration}>{minutes}:{seconds}</span>
-                                                <span className={pageStyles.date}>{new Date(game.endedAt).toLocaleDateString()}</span>
-                                                <Link to={`/analysis/${game.id}`} className={pageStyles.analysisLink}>Анализ</Link>
-                                            </li>
-                                        )
-                                    })}
+                                    {history.map(game => (
+                                        <GameHistoryItem key={game.id} game={game} />
+                                    ))}
                                 </ul>
                             ) : <p>Сыгранных партий пока нет.</p>
                         )}

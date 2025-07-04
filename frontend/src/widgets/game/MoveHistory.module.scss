@@ -5,7 +5,7 @@
   border-radius: 12px;
   box-shadow: var(--shadow);
   padding: 1rem 0.5rem 1rem 1.5rem;
-  height: 600px;
+  height: 600px; /* Фиксированная высота, чтобы появилась прокрутка */
   display: flex;
   flex-direction: column;
 }
@@ -17,16 +17,17 @@
   font-size: 1.2rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0; /* Заголовок не должен сжиматься */
 }
 
 .list {
   list-style: none;
   padding: 0 1rem 0 0;
   margin: 0;
-  overflow-y: auto;
-  flex-grow: 1;
+  overflow-y: auto; /* Включаем вертикальную прокрутку */
+  flex-grow: 1; /* Список занимает все оставшееся место */
 
-  /* Стилизация скроллбара */
+  /* Стилизация скроллбара для Webkit-браузеров */
   &::-webkit-scrollbar {
     width: 6px;
   }

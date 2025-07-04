@@ -10,15 +10,17 @@ interface MoveHistoryProps {
 export const MoveHistory: React.FC<MoveHistoryProps> = ({ moves }) => {
     const movesEndRef = useRef<null | HTMLDivElement>(null);
 
+    // Функция для автоматической прокрутки вниз при добавлении нового хода
     const scrollToBottom = () => {
         movesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
     useEffect(scrollToBottom, [moves]);
 
-    const pairedMoves = [];
+    // Группируем ходы по парам (ход белых, ход черных) для удобного отображения
+    const pairedMoves: [string, string][] = [];
     for (let i = 0; i < moves.length; i += 2) {
-        pairedMoves.push([moves[i], moves[i + 1] || '']);
+        pairedMoves.push([moves[i], moves[i + 1] || '...']);
     }
 
     return (
@@ -32,6 +34,7 @@ export const MoveHistory: React.FC<MoveHistoryProps> = ({ moves }) => {
                         <span className={styles.move}>{blackMove}</span>
                     </li>
                 ))}
+                {/* Пустой div, к которому будет осуществляться прокрутка */}
                 <div ref={movesEndRef} />
             </ol>
         </div>

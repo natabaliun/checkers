@@ -32,15 +32,8 @@ const gameSlice = createSlice({
     initialState,
     reducers: {
         setGameState(state, action: PayloadAction<Partial<GameState>>) {
-            const serverState = action.payload;
-            state.id = serverState.id ?? state.id;
-            state.fen = serverState.fen ?? state.fen;
-            state.turn = serverState.turn ?? state.turn;
-            state.players = serverState.players ?? state.players;
-            state.playerColor = serverState.playerColor ?? state.playerColor;
-            state.status = serverState.status ?? state.status;
-            state.moveHistory = serverState.moveHistory ?? state.moveHistory;
-            state.result = serverState.result ?? state.result;
+            // Используем Object.assign для простого слияния
+            Object.assign(state, action.payload);
         },
         resetGameState: () => initialState,
     },
