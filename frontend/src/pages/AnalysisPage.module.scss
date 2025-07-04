@@ -10,8 +10,9 @@
 
 .header {
   width: 100%;
-  max-width: 600px;
+  max-width: 900px; /* Увеличим ширину для соответствия макету */
   text-align: center;
+  padding: 1.5rem !important;
 
   h1 {
     color: var(--primary-color);
@@ -25,4 +26,34 @@
       color: var(--text-color);
     }
   }
+}
+
+/* --- НОВЫЕ СТИЛИ ДЛЯ МАКЕТА --- */
+.gameLayout {
+  display: grid;
+  grid-template-columns: 280px 1fr; /* Колонка для истории и колонка для доски */
+  gap: 2rem;
+  align-items: flex-start;
+  width: 100%;
+  max-width: 924px; /* 280 + 32 + 600 + 4 + 8 */
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr; /* На маленьких экранах все в одну колонку */
+  }
+}
+
+.historyPanel {
+  position: sticky;
+  top: 90px; /* 70px (высота хедера) + 20px отступ */
+
+  @media (max-width: 1024px) {
+    display: none; // Скрываем на мобильных, т.к. там нет места
+  }
+}
+
+.mainPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
 }
