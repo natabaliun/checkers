@@ -5,7 +5,7 @@
   border-radius: 12px;
   box-shadow: var(--shadow);
   padding: 1rem 0.5rem 1rem 1.5rem;
-  height: 600px; /* Фиксированная высота, чтобы появилась прокрутка */
+  height: 600px;
   display: flex;
   flex-direction: column;
 }
@@ -17,23 +17,18 @@
   font-size: 1.2rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border-color);
-  flex-shrink: 0; /* Заголовок не должен сжиматься */
+  flex-shrink: 0;
 }
 
 .list {
   list-style: none;
   padding: 0 1rem 0 0;
   margin: 0;
-  overflow-y: auto; /* Включаем вертикальную прокрутку */
-  flex-grow: 1; /* Список занимает все оставшееся место */
+  overflow-y: auto;
+  flex-grow: 1;
 
-  /* Стилизация скроллбара для Webkit-браузеров */
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
   &::-webkit-scrollbar-thumb {
     background-color: var(--border-color);
     border-radius: 10px;
@@ -42,8 +37,7 @@
 
 .movePair {
   display: flex;
-  align-items: stretch; // Чтобы контейнеры были одной высоты
-  padding: 0;
+  align-items: stretch;
   &:nth-child(odd) {
     background-color: var(--bg-color);
   }
@@ -58,21 +52,21 @@
   align-items: center;
   justify-content: center;
   border-right: 1px solid var(--border-color);
+  padding-right: 0.5rem;
+  margin-right: 0.5rem;
 }
 
+/* --- ИЗМЕНЕНИЯ ЗДЕСЬ --- */
 .moveContainer {
   flex-basis: 50%;
-  text-align: center;
-  font-family: 'Courier New', Courier, monospace;
-  font-weight: 600;
   padding: 0.5rem;
-  cursor: pointer;
   transition: background-color 0.2s ease;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column; /* <-- Главное изменение: ставим элементы в колонку */
+  justify-content: center; /* <-- Центрируем по вертикали */
+  align-items: center;     /* <-- Центрируем по горизонтали */
+  gap: 0.25rem; /* <-- Небольшой отступ между ходом и оценкой */
 
-  // Добавляем стиль для кликабельных ходов в режиме анализа
   &.selectable {
     cursor: pointer;
     &:hover {
@@ -83,21 +77,28 @@
   &.active {
     background-color: var(--primary-color);
     color: var(--light-text-color);
-    small {
+    span, small { // Наследуем цвет для дочерних элементов
       color: var(--light-text-color);
     }
   }
 
-  small {
+  span { // Стили для нотации хода (верхняя строка)
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: 600;
+    font-size: 1rem;
+  }
+
+  small { // Стили для оценки (нижняя строка)
     font-size: 0.8rem;
+    font-weight: 400;
     color: var(--text-color-secondary);
   }
 }
 
 .goodMove {
-  background-color: rgba(76, 175, 80, 0.2); // Зеленый фон для хорошего хода
+  background-color: rgba(76, 175, 80, 0.15);
 }
 
 .badMove {
-  background-color: rgba(244, 67, 54, 0.2); // Красный фон для ошибки
+  background-color: rgba(244, 67, 54, 0.15);
 }
