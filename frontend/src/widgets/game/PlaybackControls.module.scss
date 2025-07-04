@@ -1,0 +1,22 @@
+/* Файл: frontend/src/widgets/game/PlaybackControls.module.scss */
+
+.controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem !important;
+  width: 100%;
+  max-width: 600px;
+}
+
+.moveCounter {
+  font-size: 1.2rem;
+  color: var(--text-color-secondary);
+  min-width: 150px;
+  text-align: center;
+
+  strong {
+    color: var(--text-color);
+  }
+}

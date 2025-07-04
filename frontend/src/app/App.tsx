@@ -11,6 +11,7 @@ import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 import ProfilePage from '../pages/ProfilePage';
 import { GamePage } from '../pages/GamePage';
+import { AnalysisPage } from '../pages/AnalysisPage';
 import styles from './App.module.scss';
 import commonStyles from '../shared/ui/Common.module.scss';
 import { ReturnToGame } from '../features/auth/ReturnToGame';
@@ -74,6 +75,7 @@ function App() {
                     <Route element={<ProtectedRoute />}>
                         <Route path="/profile" element={<ProfilePage />} />
                         <Route path="/game/:gameId" element={<GamePage />} />
+                        <Route path="/analysis/:gameId" element={<AnalysisPage />} />
                     </Route>
                 </Routes>
             </main>

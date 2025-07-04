@@ -11,18 +11,10 @@ export const gameController = {
             const userId = user.id;
 
             const games = await prisma.completedGame.findMany({
-                where: {
-                    OR: [
-                        { playerWhiteId: userId },
-                        { playerBlackId: userId },
-                    ],
-                },
-                orderBy: {
-                    endedAt: 'desc',
-                },
+                where: { OR: [{ playerWhiteId: userId }, { playerBlackId: userId }] },
+                orderBy: { endedAt: 'desc' },
             });
 
-            // Собираем ID всех оппонентов, чтобы получить их никнеймы одним запросом
             const opponentIds = new Set<string>();
             games.forEach(game => {
                 if (game.playerWhiteId !== userId) opponentIds.add(game.playerWhiteId);
@@ -35,11 +27,10 @@ export const gameController = {
             });
             const opponentMap = new Map(opponents.map(o => [o.id, o.nickname]));
 
-            // Обогащаем данные для клиента
             const history = games.map(game => {
                 const myColor = game.playerWhiteId === userId ? 'WHITE' : 'BLACK';
                 const opponentId = myColor === 'WHITE' ? game.playerBlackId : game.playerWhiteId;
-                const opponentNickname = opponentMap.get(opponentId) || 'Bot'; // Если оппонента нет в БД, это был бот
+                const opponentNickname = opponentMap.get(opponentId) || 'Bot';
 
                 return {
                     id: game.id,
@@ -58,4 +49,37 @@ export const gameController = {
             res.status(500).json({ message: 'Error fetching game history' });
         }
     },
+
+    // --- НОВЫЙ МЕТОД ---
+    async getCompletedGame(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const game = await prisma.completedGame.findUnique({
+                where: { id },
+            });
+
+            if (!game) {
+                return res.status(404).json({ message: 'Game not found' });
+            }
+
+            // Получаем никнеймы игроков
+            const players = await prisma.user.findMany({
+                where: { id: { in: [game.playerWhiteId, game.playerBlackId] } },
+                select: { id: true, nickname: true }
+            });
+            const playerMap = new Map(players.map(p => [p.id, p.nickname]));
+
+            const response = {
+                ...game,
+                playerWhiteNickname: playerMap.get(game.playerWhiteId) || 'Bot',
+                playerBlackNickname: playerMap.get(game.playerBlackId) || 'Bot',
+            };
+
+            res.json(response);
+
+        } catch (error) {
+            console.error(`Error fetching completed game ${req.params.id}:`, error);
+            res.status(500).json({ message: 'Error fetching completed game' });
+        }
+    }
 };

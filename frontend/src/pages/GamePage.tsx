@@ -76,6 +76,13 @@ export const GamePage = () => {
         return <div className={styles.gamePage}><h2>Загрузка игры...</h2></div>;
     }
 
+    // --- НОВЫЙ ОБРАБОТЧИК ДЛЯ ПЕРЕДАЧИ В BOARD ---
+    const handleMove = (move: { from: { row: number, col: number }, to: { row: number, col: number } }) => {
+        if (user && gameState.id) {
+            socketService.sendMove(gameState.id, move);
+        }
+    };
+
     const handleResign = () => {
         if (gameId) {
             if (window.confirm('Вы уверены, что хотите сдаться?')) {
@@ -117,7 +124,7 @@ export const GamePage = () => {
                     <div className={`${styles.status} ${gameState.turn === gameState.playerColor ? styles.myTurn : ''}`}>
                         Ход: {gameState.turn} {gameState.turn === gameState.playerColor && "(Ваш ход)"}
                     </div>
-                    <Board />
+                    <Board fen={gameState.fen} onMove={handleMove} />
                     <div className={styles.footer}>
                         {gameState.playerColor && <p>Вы играете за: <strong>{gameState.playerColor}</strong></p>}
                         {gameState.status === 'PLAYING' && (

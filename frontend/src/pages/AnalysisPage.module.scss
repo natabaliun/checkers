@@ -1,0 +1,28 @@
+/* Файл: frontend/src/pages/AnalysisPage.module.scss */
+
+.analysisPage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 2rem 0;
+}
+
+.header {
+  width: 100%;
+  max-width: 600px;
+  text-align: center;
+
+  h1 {
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+  }
+
+  p {
+    font-size: 1.1rem;
+    color: var(--text-color-secondary);
+    strong {
+      color: var(--text-color);
+    }
+  }
+}

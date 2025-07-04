@@ -1,11 +1,18 @@
 // Файл: frontend/src/widgets/game/Board.tsx
 
 import { useState } from 'react';
-import { useAppSelector } from '../../shared/hooks/redux';
+import { useAppSelector } from '../../shared/hooks/redux'; // useSelector все еще нужен для playerColor
 import { socketService } from '../../shared/api/socket';
 import styles from './Board.module.scss';
 
 type Position = { row: number, col: number };
+
+// --- НОВЫЙ ИНТЕРФЕЙС ДЛЯ ПРОПСОВ ---
+interface BoardProps {
+    fen: string;
+    // Делаем обработчик хода опциональным, так как в режиме анализа он не нужен
+    onMove?: (move: { from: Position, to: Position }) => void;
+}
 
 const parseFen = (fen: string): (string | null)[][] => {
     const board: (string | null)[][] = [];
@@ -26,14 +33,18 @@ const parseFen = (fen: string): (string | null)[][] => {
     return board;
 };
 
-export const Board = () => {
-    const gameState = useAppSelector(state => state.game);
-    const { fen, turn, playerColor } = gameState;
-    const boardState = parseFen(fen);
+// --- КОМПОНЕНТ ТЕПЕРЬ ПРИНИМАЕТ ПРОПСЫ ---
+export const Board: React.FC<BoardProps> = ({ fen, onMove }) => {
+    // gameState и user больше не нужны напрямую, только playerColor и turn для валидации кликов
+    const { turn, playerColor } = useAppSelector(state => state.game);
 
+    const boardState = parseFen(fen);
     const [selectedPiece, setSelectedPiece] = useState<Position | null>(null);
 
     const handleCellClick = (row: number, col: number) => {
+        // Если обработчик onMove не передан (режим анализа), клики не работают
+        if (!onMove) return;
+
         if (playerColor !== turn) {
             return;
         }
@@ -42,17 +53,12 @@ export const Board = () => {
 
         if (selectedPiece) {
             const move = { from: selectedPiece, to: { row, col } };
-
-            if (gameState.id) {
-                // --- ИСПРАВЛЕНИЕ ЗДЕСЬ: убираем лишний аргумент `user.id` ---
-                socketService.sendMove(gameState.id, move);
-            }
-
+            onMove(move); // Вызываем колбэк, переданный из родителя
             setSelectedPiece(null);
         } else {
             if (pieceChar) {
-                const pieceColor = (pieceChar === 'w' || pieceChar === 'W') ? 'WHITE' : 'BLACK';
-                if (pieceColor === playerColor) {
+                const pieceColorOfCell = (pieceChar === 'w' || pieceChar === 'W') ? 'WHITE' : 'BLACK';
+                if (pieceColorOfCell === playerColor) {
                     setSelectedPiece({ row, col });
                 }
             }

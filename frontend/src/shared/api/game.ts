@@ -18,5 +18,5 @@ apiClient.interceptors.request.use((config) => {
 
 export const gameApi = {
     getHistory: () => apiClient.get('/games/history'),
-    // В будущем: getGameDetails: (id: string) => apiClient.get(`/games/${id}`),
+    getGameDetails: (id: string) => apiClient.get(`/games/${id}`),
 };
