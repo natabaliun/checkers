@@ -6,6 +6,7 @@ import { gameApi } from '../shared/api/game';
 import { Board as BoardLogic } from '../logic/game/Board';
 import { evaluatePosition } from '../logic/game/evaluation';
 import { Board as BoardComponent } from '../widgets/game/Board';
+import { BoardWrapper } from '../widgets/game/BoardWrapper';
 import { PlaybackControls } from '../widgets/game/PlaybackControls';
 import { MoveHistory } from '../widgets/game/MoveHistory';
 import styles from './AnalysisPage.module.scss';
@@ -123,7 +124,9 @@ export const AnalysisPage = () => {
                     />
                 </div>
                 <div className={styles.mainPanel}>
-                    <BoardComponent fen={boardLogic.toFen()} />
+                    <BoardWrapper>
+                        <BoardComponent fen={boardLogic.toFen()} />
+                    </BoardWrapper>
                     <PlaybackControls
                         currentMove={currentMoveIndex}
                         totalMoves={gameData.moves.length}

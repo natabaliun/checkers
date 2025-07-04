@@ -5,6 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../shared/hooks/redux';
 import { socketService } from '../shared/api/socket';
 import { Board } from '../widgets/game/Board';
+import { BoardWrapper } from '../widgets/game/BoardWrapper';
 import { PlayerCard } from '../widgets/game/PlayerCard';
 import { MoveHistory } from '../widgets/game/MoveHistory';
 import styles from './GamePage.module.scss';
@@ -124,7 +125,9 @@ export const GamePage = () => {
                     <div className={`${styles.status} ${gameState.turn === gameState.playerColor ? styles.myTurn : ''}`}>
                         Ход: {gameState.turn} {gameState.turn === gameState.playerColor && "(Ваш ход)"}
                     </div>
-                    <Board fen={gameState.fen} onMove={handleMove} />
+                    <BoardWrapper>
+                        <Board fen={gameState.fen} onMove={handleMove} />
+                    </BoardWrapper>
                     <div className={styles.footer}>
                         {gameState.playerColor && <p>Вы играете за: <strong>{gameState.playerColor}</strong></p>}
                         {gameState.status === 'PLAYING' && (

@@ -1,0 +1,58 @@
+/* Файл: frontend/src/widgets/game/BoardWrapper.module.scss */
+
+.boardWrapper {
+  display: grid;
+  // Создаем сетку: колонка для левых цифр, колонка для доски, колонка для правых цифр
+  // И ряды для верхних, доски, и нижних букв
+  grid-template-columns: 30px 1fr 30px;
+  grid-template-rows: 30px 1fr 30px;
+  // Определяем области
+  grid-template-areas:
+        ". top ."
+        "left board right"
+        ". bottom .";
+  width: fit-content; // Обертка подстраивается под размер доски
+  margin: 0 auto; // Центрируем
+}
+
+.boardContainer {
+  grid-area: board;
+  // Ограничиваем максимальный и минимальный размер доски для адаптивности
+  max-width: 600px;
+  min-width: 300px;
+  width: 70vw; // Занимает 70% ширины окна просмотра
+}
+
+.coords {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--text-color-secondary);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+// Контейнеры для букв (сверху и снизу)
+.top, .bottom {
+  flex-direction: row;
+  span {
+    flex: 1; // Равномерно распределяем буквы
+    text-align: center;
+  }
+}
+.top { grid-area: top; }
+.bottom { grid-area: bottom; }
+
+
+// Контейнеры для цифр (слева и справа)
+.left, .right {
+  flex-direction: column;
+  span {
+    flex: 1; // Равномерно распределяем цифры
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+.left { grid-area: left; }
+.right { grid-area: right; }
