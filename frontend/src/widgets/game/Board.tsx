@@ -1,13 +1,11 @@
 // Файл: frontend/src/widgets/game/Board.tsx
 
 import { useState } from 'react';
-import { useAppSelector } from '../../shared/hooks/redux'; // useSelector все еще нужен для playerColor
-import { socketService } from '../../shared/api/socket';
+import { useAppSelector } from '../../shared/hooks/redux';
 import styles from './Board.module.scss';
 
 type Position = { row: number, col: number };
 
-// --- НОВЫЙ ИНТЕРФЕЙС ДЛЯ ПРОПСОВ ---
 interface BoardProps {
     fen: string;
     // Делаем обработчик хода опциональным, так как в режиме анализа он не нужен
@@ -33,7 +31,6 @@ const parseFen = (fen: string): (string | null)[][] => {
     return board;
 };
 
-// --- КОМПОНЕНТ ТЕПЕРЬ ПРИНИМАЕТ ПРОПСЫ ---
 export const Board: React.FC<BoardProps> = ({ fen, onMove }) => {
     // gameState и user больше не нужны напрямую, только playerColor и turn для валидации кликов
     const { turn, playerColor } = useAppSelector(state => state.game);

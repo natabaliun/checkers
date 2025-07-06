@@ -13,7 +13,6 @@ import styles from './AnalysisPage.module.scss';
 import commonStyles from '../shared/ui/Common.module.scss';
 import { Position } from '../logic/game/types'; // Импортируем тип Position
 
-// --- НОВЫЙ ХЕЛПЕР ДЛЯ КОНВЕРТАЦИИ ---
 const posToString = (pos: Position): string => {
     const files = 'abcdefgh';
     return `${files[pos.col]}${8 - pos.row}`;
@@ -93,8 +92,6 @@ export const AnalysisPage = () => {
     if (isLoading) return <div className={styles.analysisPage}><h2>Загрузка анализа...</h2></div>;
     if (!gameData) return <div className={styles.analysisPage}><h2>Партия не найдена.</h2></div>;
 
-    // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
-    // Конвертируем ходы в строки ПЕРЕД передачей в компонент
     const movesWithScores = gameData.moves.map((moveObj: any, index: number) => {
         const prevScore = positionScores[index] || 0;
         const currentScore = positionScores[index + 1] || 0;

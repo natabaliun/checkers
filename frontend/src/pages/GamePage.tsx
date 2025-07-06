@@ -77,7 +77,6 @@ export const GamePage = () => {
         return <div className={styles.gamePage}><h2>Загрузка игры...</h2></div>;
     }
 
-    // --- НОВЫЙ ОБРАБОТЧИК ДЛЯ ПЕРЕДАЧИ В BOARD ---
     const handleMove = (move: { from: { row: number, col: number }, to: { row: number, col: number } }) => {
         if (user && gameState.id) {
             socketService.sendMove(gameState.id, move);

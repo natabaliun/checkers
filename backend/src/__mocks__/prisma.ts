@@ -1,6 +1,3 @@
-// Файл: backend/src/infrastructure/database/__mocks__/prisma.ts
-// Jest будет автоматически использовать этот файл вместо реального prisma.ts в тестах
-
 export const prisma = {
     user: {
         findFirst: jest.fn(),
